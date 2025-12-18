@@ -7,6 +7,7 @@ and
 `npm run dev`
 
 ## Build
-Due to an old quirk of GitHub Pages, it currently builds to the `/docs` folder.
+Due to an old quirk of GitHub Pages, it currently builds to the `/docs` folder. Build with `npm run build`
+
 ## Source
 [RYR1 Protein from RCSB](https://www.rcsb.org/structure/8X48)
