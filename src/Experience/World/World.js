@@ -21,7 +21,7 @@ export default class World {
         "Protein Title",
         "Protein Description",
         "Protein Metadata",
-        0.1
+        0.2
       );
     });
   }

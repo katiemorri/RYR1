@@ -32432,7 +32432,7 @@ class World {
         "Protein Title",
         "Protein Description",
         "Protein Metadata",
-        0.1
+        0.2
       );
     });
   }
@@ -32679,4 +32679,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-5Dw16ZnU.js.map
+//# sourceMappingURL=index-CBuOx_0j.js.map
