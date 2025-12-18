@@ -31065,7 +31065,6 @@ class Environment {
     this.scene = this.experience.scene;
     this.resources = this.experience.resources;
     this.scene.background = new Color("AliceBlue");
-    this.setSunLight();
     this.setAmbientLight();
   }
   setAmbientLight() {
@@ -32293,7 +32292,7 @@ class PDBLoader extends Loader {
   }
 }
 class Protein {
-  constructor(filename, title, description, metadata) {
+  constructor(filename, title, description, metadata, rejectionRate = 0.1) {
     this.experience = new Experience();
     this.scene = this.experience.scene;
     this.resources = this.experience.resources;
@@ -32302,6 +32301,7 @@ class Protein {
     this.title = title;
     this.description = description;
     this.metadata = metadata;
+    this.rejectionRate = rejectionRate;
     this.root = new Group();
     this.group = new Group();
     this.root.position.set(0, 1.2, -0.5);
@@ -32309,9 +32309,9 @@ class Protein {
     this.scene.add(this.group);
     this.loader = new PDBLoader();
     this.loadProtein(filename);
-    this.group.scale.set(8e-5, 8e-5, 8e-5);
+    this.group.scale.set(16e-5, 16e-5, 16e-5);
     this.group.rotation.x -= Math.PI / 2;
-    this.group.position.y += 0.6;
+    this.group.position.y += 0.9;
   }
   loadProtein(filename) {
     const url = "./" + filename;
@@ -32338,34 +32338,41 @@ class Protein {
     geometryAtoms.translate(offset.x, offset.y, offset.z);
     geometryBonds.translate(offset.x, offset.y, offset.z);
     this.renderAtomsInstanced(geometryAtoms);
-    console.log(`Protein loaded: ${json.atoms.length} atoms`);
+    const renderedCount = Math.floor(json.atoms.length * (1 - this.rejectionRate));
+    console.log(`Protein loaded: ${json.atoms.length} atoms, rendering ${renderedCount} (${(this.rejectionRate * 100).toFixed(0)}% rejected)`);
   }
   renderAtomsInstanced(geometryAtoms) {
     const positions = geometryAtoms.getAttribute("position");
     const colors = geometryAtoms.getAttribute("color");
-    const atomCount = positions.count;
+    const totalAtoms = positions.count;
+    const renderedAtoms = Math.floor(totalAtoms * (1 - this.rejectionRate));
     const sphereGeometry = new IcosahedronGeometry(1, 1);
     const material = new MeshBasicMaterial();
     const atomsMesh = new InstancedMesh(
       sphereGeometry,
       material,
-      atomCount
+      renderedAtoms
     );
     const matrix = new Matrix4();
     const position = new Vector3();
     const scale = new Vector3(25, 25, 25);
     const quaternion = new Quaternion();
     const color = new Color();
-    for (let i = 0; i < atomCount; i++) {
+    let instanceIndex = 0;
+    const skipInterval = Math.round(1 / this.rejectionRate);
+    for (let i = 0; i < totalAtoms; i++) {
+      if (i % skipInterval === 0) continue;
+      if (instanceIndex >= renderedAtoms) break;
       position.set(
         positions.getX(i) * 75,
         positions.getY(i) * 75,
         positions.getZ(i) * 75
       );
       matrix.compose(position, quaternion, scale);
-      atomsMesh.setMatrixAt(i, matrix);
+      atomsMesh.setMatrixAt(instanceIndex, matrix);
       color.setRGB(colors.getX(i), colors.getY(i), colors.getZ(i));
-      atomsMesh.setColorAt(i, color);
+      atomsMesh.setColorAt(instanceIndex, color);
+      instanceIndex++;
     }
     atomsMesh.instanceMatrix.needsUpdate = true;
     atomsMesh.instanceColor.needsUpdate = true;
@@ -32375,7 +32382,7 @@ class Protein {
     const positions = geometryBonds.getAttribute("position");
     const bondCount = positions.count / 2;
     const boxGeometry = new BoxGeometry(1, 1, 1);
-    const material = new MeshBasicMaterial({ color: 16777215 });
+    const material = new MeshBasicMaterial({ color: 0 });
     const bondsMesh = new InstancedMesh(boxGeometry, material, bondCount);
     const matrix = new Matrix4();
     const position = new Vector3();
@@ -32424,7 +32431,8 @@ class World {
         "8X48.pdb",
         "Protein Title",
         "Protein Description",
-        "Protein Metadata"
+        "Protein Metadata",
+        0.1
       );
     });
   }
@@ -32671,4 +32679,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-BRSkRyT3.js.map
+//# sourceMappingURL=index-5Dw16ZnU.js.map

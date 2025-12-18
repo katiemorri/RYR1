@@ -3,7 +3,7 @@ import { PDBLoader } from "three/addons/loaders/PDBLoader.js";
 import Experience from "../Experience.js";
 
 export default class Protein {
-  constructor(filename, title, description, metadata) {
+  constructor(filename, title, description, metadata, rejectionRate = 0.1) {
     this.experience = new Experience();
     this.scene = this.experience.scene;
     this.resources = this.experience.resources;
@@ -13,6 +13,7 @@ export default class Protein {
     this.title = title;
     this.description = description;
     this.metadata = metadata;
+    this.rejectionRate = rejectionRate; // Fraction of atoms to skip (0.1 = 10%)
 
     // Main group for the protein
     this.root = new THREE.Group();
@@ -24,9 +25,9 @@ export default class Protein {
     // Initialize loader and load the protein
     this.loader = new PDBLoader();
     this.loadProtein(filename);
-    this.group.scale.set(0.00008, 0.00008, 0.00008);
+    this.group.scale.set(0.00016, 0.00016, 0.00016);
     this.group.rotation.x -= Math.PI / 2;
-    this.group.position.y += 0.6;
+    this.group.position.y += 0.9;
   }
 
   loadProtein(filename) {
@@ -65,21 +66,23 @@ export default class Protein {
     // Render bonds using instanced geometry
     // this.renderBondsInstanced(geometryBonds);
 
-    console.log(`Protein loaded: ${json.atoms.length} atoms`);
+    const renderedCount = Math.floor(json.atoms.length * (1 - this.rejectionRate));
+    console.log(`Protein loaded: ${json.atoms.length} atoms, rendering ${renderedCount} (${(this.rejectionRate * 100).toFixed(0)}% rejected)`);
   }
 
   renderAtomsInstanced(geometryAtoms) {
     const positions = geometryAtoms.getAttribute("position");
     const colors = geometryAtoms.getAttribute("color");
-    const atomCount = positions.count;
+    const totalAtoms = positions.count;
+    const renderedAtoms = Math.floor(totalAtoms * (1 - this.rejectionRate));
 
-    // Create instanced mesh for all atoms
+    // Create instanced mesh for reduced atom count
     const sphereGeometry = new THREE.IcosahedronGeometry(1, 1);
     const material = new THREE.MeshBasicMaterial();
     const atomsMesh = new THREE.InstancedMesh(
       sphereGeometry,
       material,
-      atomCount
+      renderedAtoms
     );
 
     const matrix = new THREE.Matrix4();
@@ -88,7 +91,13 @@ export default class Protein {
     const quaternion = new THREE.Quaternion();
     const color = new THREE.Color();
 
-    for (let i = 0; i < atomCount; i++) {
+    let instanceIndex = 0;
+    const skipInterval = Math.round(1 / this.rejectionRate);
+    for (let i = 0; i < totalAtoms; i++) {
+      // Skip atoms based on rejection rate (e.g., 0.05 = every 20th, 0.1 = every 10th)
+      if (i % skipInterval === 0) continue;
+      if (instanceIndex >= renderedAtoms) break;
+
       position.set(
         positions.getX(i) * 75,
         positions.getY(i) * 75,
@@ -96,10 +105,12 @@ export default class Protein {
       );
 
       matrix.compose(position, quaternion, scale);
-      atomsMesh.setMatrixAt(i, matrix);
+      atomsMesh.setMatrixAt(instanceIndex, matrix);
 
       color.setRGB(colors.getX(i), colors.getY(i), colors.getZ(i));
-      atomsMesh.setColorAt(i, color);
+      atomsMesh.setColorAt(instanceIndex, color);
+      
+      instanceIndex++;
     }
 
     atomsMesh.instanceMatrix.needsUpdate = true;
@@ -114,7 +125,7 @@ export default class Protein {
 
     // Create instanced mesh for all bonds
     const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const bondsMesh = new THREE.InstancedMesh(boxGeometry, material, bondCount);
 
     const matrix = new THREE.Matrix4();
