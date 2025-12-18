@@ -32414,14 +32414,13 @@ class Protein {
     geometryAtoms.translate(offset.x, offset.y, offset.z);
     geometryBonds.translate(offset.x, offset.y, offset.z);
     this.renderAtomsInstanced(geometryAtoms);
-    this.renderBondsInstanced(geometryBonds);
     console.log(`Protein loaded: ${json.atoms.length} atoms`);
   }
   renderAtomsInstanced(geometryAtoms) {
     const positions = geometryAtoms.getAttribute("position");
     const colors = geometryAtoms.getAttribute("color");
     const atomCount = positions.count;
-    const sphereGeometry = new IcosahedronGeometry(1, 2);
+    const sphereGeometry = new IcosahedronGeometry(1, 1);
     const material = new MeshPhongMaterial();
     const atomsMesh = new InstancedMesh(
       sphereGeometry,
@@ -32452,7 +32451,7 @@ class Protein {
     const positions = geometryBonds.getAttribute("position");
     const bondCount = positions.count / 2;
     const boxGeometry = new BoxGeometry(1, 1, 1);
-    const material = new MeshPhongMaterial({ color: 16777215 });
+    const material = new MeshBasicMaterial({ color: 16777215 });
     const bondsMesh = new InstancedMesh(boxGeometry, material, bondCount);
     const matrix = new Matrix4();
     const position = new Vector3();
@@ -32748,4 +32747,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-bIQP8AOB.js.map
+//# sourceMappingURL=index-LrpIZWP4.js.map

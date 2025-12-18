@@ -63,7 +63,7 @@ export default class Protein {
     this.renderAtomsInstanced(geometryAtoms);
 
     // Render bonds using instanced geometry
-    this.renderBondsInstanced(geometryBonds);
+    // this.renderBondsInstanced(geometryBonds);
 
     console.log(`Protein loaded: ${json.atoms.length} atoms`);
   }
@@ -74,7 +74,7 @@ export default class Protein {
     const atomCount = positions.count;
 
     // Create instanced mesh for all atoms
-    const sphereGeometry = new THREE.IcosahedronGeometry(1, 2);
+    const sphereGeometry = new THREE.IcosahedronGeometry(1, 1);
     const material = new THREE.MeshPhongMaterial();
     const atomsMesh = new THREE.InstancedMesh(
       sphereGeometry,
@@ -114,7 +114,7 @@ export default class Protein {
 
     // Create instanced mesh for all bonds
     const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshPhongMaterial({ color: 0xffffff });
+    const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const bondsMesh = new THREE.InstancedMesh(boxGeometry, material, bondCount);
 
     const matrix = new THREE.Matrix4();
