@@ -59,21 +59,22 @@ export default class Experience extends EventEmitter {
 
     if (this.debug.active) {
       // this.debugFolder = this.debug.ui.addFolder("experience");
-      this.debug.ui
-        .add(
-          {
-            initNetworking: () => {
-              window.experience.networking = new Networking();
-
-              // hides Join Session after it's clicked
-              this.debug.ui.domElement.style.display = "none";
-            },
-          },
-          "initNetworking"
-        )
-        .name("Join Session");
+      // this.debug.ui
+      //   .add(
+      //     {
+      //       initNetworking: () => {
+      //         window.experience.networking = new Networking();
+      //         // hides Join Session after it's clicked
+      //         this.debug.ui.domElement.style.display = "none";
+      //       },
+      //     },
+      //     "initNetworking"
+      //   )
+      //   .name("Join Session");
       // add a button that does     this.networking = new Networking();
     }
+    // hide debug UI
+    this.debug.ui.domElement.style.display = "none";
 
     this.sizes = new Sizes();
     this.time = new Time();
