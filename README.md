@@ -1,5 +1,6 @@
-# seals
+# RYR1
+![3D render of a protein](./thumbnail.png)
+A 3D view of the RYR1 protein, viewable in VR via WebXR and Three.js.
 
-## Attributions
-
-Skybox - [Quantani Noon](https://polyhaven.com/a/qwantani_noon_puresky) by Greg Zaal and Jarod Guest via Poly Haven
+## Source
+[RYR1 Protein from RCSB](https://www.rcsb.org/structure/8X48)
