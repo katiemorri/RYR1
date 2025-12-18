@@ -75,7 +75,7 @@ export default class Protein {
 
     // Create instanced mesh for all atoms
     const sphereGeometry = new THREE.IcosahedronGeometry(1, 1);
-    const material = new THREE.MeshPhongMaterial();
+    const material = new THREE.MeshBasicMaterial();
     const atomsMesh = new THREE.InstancedMesh(
       sphereGeometry,
       material,
