@@ -32309,9 +32309,9 @@ class Protein {
     this.scene.add(this.group);
     this.loader = new PDBLoader();
     this.loadProtein(filename);
-    this.group.scale.set(16e-5, 16e-5, 16e-5);
+    this.group.scale.set(2e-4, 2e-4, 2e-4);
     this.group.rotation.x -= Math.PI / 2;
-    this.group.position.y += 0.9;
+    this.group.position.y += 1.2;
   }
   loadProtein(filename) {
     const url = "./" + filename;
@@ -32338,8 +32338,14 @@ class Protein {
     geometryAtoms.translate(offset.x, offset.y, offset.z);
     geometryBonds.translate(offset.x, offset.y, offset.z);
     this.renderAtomsInstanced(geometryAtoms);
-    const renderedCount = Math.floor(json.atoms.length * (1 - this.rejectionRate));
-    console.log(`Protein loaded: ${json.atoms.length} atoms, rendering ${renderedCount} (${(this.rejectionRate * 100).toFixed(0)}% rejected)`);
+    const renderedCount = Math.floor(
+      json.atoms.length * (1 - this.rejectionRate)
+    );
+    console.log(
+      `Protein loaded: ${json.atoms.length} atoms, rendering ${renderedCount} (${(this.rejectionRate * 100).toFixed(
+        0
+      )}% rejected)`
+    );
   }
   renderAtomsInstanced(geometryAtoms) {
     const positions = geometryAtoms.getAttribute("position");
@@ -32679,4 +32685,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-CBuOx_0j.js.map
+//# sourceMappingURL=index-BsVYlHd4.js.map

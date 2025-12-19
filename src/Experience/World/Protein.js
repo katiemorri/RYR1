@@ -25,9 +25,9 @@ export default class Protein {
     // Initialize loader and load the protein
     this.loader = new PDBLoader();
     this.loadProtein(filename);
-    this.group.scale.set(0.00016, 0.00016, 0.00016);
+    this.group.scale.set(0.0002, 0.0002, 0.0002);
     this.group.rotation.x -= Math.PI / 2;
-    this.group.position.y += 0.9;
+    this.group.position.y += 1.2;
   }
 
   loadProtein(filename) {
@@ -66,8 +66,16 @@ export default class Protein {
     // Render bonds using instanced geometry
     // this.renderBondsInstanced(geometryBonds);
 
-    const renderedCount = Math.floor(json.atoms.length * (1 - this.rejectionRate));
-    console.log(`Protein loaded: ${json.atoms.length} atoms, rendering ${renderedCount} (${(this.rejectionRate * 100).toFixed(0)}% rejected)`);
+    const renderedCount = Math.floor(
+      json.atoms.length * (1 - this.rejectionRate)
+    );
+    console.log(
+      `Protein loaded: ${
+        json.atoms.length
+      } atoms, rendering ${renderedCount} (${(this.rejectionRate * 100).toFixed(
+        0
+      )}% rejected)`
+    );
   }
 
   renderAtomsInstanced(geometryAtoms) {
@@ -109,7 +117,7 @@ export default class Protein {
 
       color.setRGB(colors.getX(i), colors.getY(i), colors.getZ(i));
       atomsMesh.setColorAt(instanceIndex, color);
-      
+
       instanceIndex++;
     }
 
