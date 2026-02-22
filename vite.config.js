@@ -3,6 +3,7 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 
 const isCodeSandbox =
   "SANDBOX_URL" in process.env || "CODESANDBOX_HOST" in process.env;
+const isCodeSpaces = "CODESPACES" in process.env;
 
 export default {
   root: "src/",
@@ -11,7 +12,7 @@ export default {
   server: {
     host: true,
     open: !isCodeSandbox, // Open if it's not a CodeSandbox
-    https: true,
+    https: !isCodeSpaces,
   },
   build: {
     outDir: "../docs",

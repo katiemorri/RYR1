@@ -20,8 +20,7 @@ export default class World {
         "8X48.pdb",
         "Protein Title",
         "Protein Description",
-        "Protein Metadata",
-        0.2
+        "Protein Metadata"
       );
     });
   }
