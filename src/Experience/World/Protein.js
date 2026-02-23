@@ -21,6 +21,9 @@ export default class Protein {
     this.group.add(this.root);
     this.scene.add(this.group);
 
+    // Store protein meshes for interaction
+    this.meshes = [];
+
     // Initialize loader and load the protein
     this.loader = new PDBLoader();
     this.loadProtein(filename);
@@ -30,39 +33,59 @@ export default class Protein {
 
     // Visual defaults to match PyMOL-like cartoon
     this.scene.background = new THREE.Color(0xffffff);
-    // lighting: directional top-left, ambient, weak fill from opposite side
-    const dir = new THREE.DirectionalLight(0xffffff, 1.5);
-    dir.position.set(-1, 1, 0.5);
-    dir.position.multiplyScalar(10);
-    this.scene.add(dir);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-    this.scene.add(ambient);
+    // const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    // this.scene.add(ambient);
 
-    const fill = new THREE.DirectionalLight(0xffffff, 0.3);
-    fill.position.set(1, -0.5, -0.5);
-    fill.position.multiplyScalar(10);
-    this.scene.add(fill);
+    // const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+    // fill.position.set(1, -0.5, -0.5);
+    // fill.position.multiplyScalar(10);
+    // this.scene.add(fill);
   }
 
   loadProtein(filename) {
-    const url = "./" + filename;
+    const pdbUrl = "./" + filename;
+    // Derive SS JSON path: "8X48.pdb" → "8X48.ss.json"
+    const ssUrl = "./" + filename.replace(/\.pdb$/i, ".ss.json");
 
-    fetch(url)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status} while loading ${url}`);
-        }
-        return response.text();
-      })
-      .then((pdbText) => {
+    Promise.all([
+      fetch(pdbUrl).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} loading ${pdbUrl}`);
+        return r.text();
+      }),
+      fetch(ssUrl)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ])
+      .then(([pdbText, ssJson]) => {
         const pdb = this.loader.parse(pdbText);
         const residues = this.parseResiduesFromPDB(pdbText);
-        const ssLabels = this.computeDSSP(residues);
+
+        let ssLabels;
+        if (ssJson && ssJson.assignments) {
+          // Use pre-computed Molstar DSSP assignments (gold standard)
+          ssLabels = residues.map((r) => {
+            const key = `${r.chain}:${r.resSeq}:${r.insertionCode}`;
+            const ss = ssJson.assignments[key];
+            if (ss === "helix") return "H";
+            if (ss === "sheet") return "E";
+            return "C";
+          });
+          console.log(
+            "Secondary structure loaded from pre-computed JSON",
+            `(${ssLabels.filter((l) => l === "H").length} helix,`,
+            `${ssLabels.filter((l) => l === "E").length} sheet,`,
+            `${ssLabels.filter((l) => l === "C").length} coil)`,
+          );
+        } else {
+          // Fallback: runtime CA-distance method (Zhang & Skolnick)
+          ssLabels = this.computeDSSP(residues);
+        }
+
         this.onProteinLoaded(pdb, { residues, ssLabels });
       })
       .catch((error) => {
-        console.error("Error loading PDB file:", error);
+        console.error("Error loading protein:", error);
       });
   }
 
@@ -76,9 +99,12 @@ export default class Protein {
 
     geometryAtoms.translate(offset.x, offset.y, offset.z);
 
-    const segmentCount = this.renderSecondaryStructure(secondaryStructure, offset);
+    const segmentCount = this.renderSecondaryStructure(
+      secondaryStructure,
+      offset,
+    );
     console.log(
-      `Protein loaded: rendered ${segmentCount} secondary-structure segments`
+      `Protein loaded: rendered ${segmentCount} secondary-structure segments`,
     );
   }
   // Parse residues from PDB text collecting CA and O coordinates per residue
@@ -123,7 +149,10 @@ export default class Protein {
     }
     const residues = [];
     for (const [chain, arr] of chains) {
-      arr.sort((a, b) => a.resSeq - b.resSeq || a.insertionCode.localeCompare(b.insertionCode));
+      arr.sort(
+        (a, b) =>
+          a.resSeq - b.resSeq || a.insertionCode.localeCompare(b.insertionCode),
+      );
       for (const r of arr) {
         // ensure CA exists
         if (!r.ca) continue;
@@ -133,107 +162,70 @@ export default class Protein {
     return residues;
   }
 
-  // Very small, approximate DSSP-like assignment using CA and O coordinates only.
-  // Returns an array of labels 'H' (helix), 'E' (sheet), 'C' (coil) matching residues order.
+  // Fallback SS assignment using CA-CA distance patterns (Zhang & Skolnick method,
+  // as used by NGL Viewer). Needs only CA positions — no backbone reconstruction.
+  // Reference: https://github.com/nglviewer/ngl/blob/master/src/structure/structure-utils.ts
   computeDSSP(residues) {
     const n = residues.length;
     if (n === 0) return [];
 
-    // Reconstruct approximate N and C and H positions from CA positions
-    const Npos = new Array(n);
-    const Cpos = new Array(n);
-    const Hpos = new Array(n);
+    // Ideal CA-CA distances for consecutive residues i→i+2, i→i+3, i→i+4
+    const helixDist = [5.45, 5.18, 6.37]; // Å, typical α-helix
+    const sheetDist = [6.1, 10.4, 13.0]; // Å, typical β-sheet
+    const helixDelta = 2.1; // tolerance
+    const sheetDelta = 1.42;
 
-    for (let i = 0; i < n; i++) {
-      const ca = residues[i].ca;
-      // tangent from neighbors
-      let tangent = new THREE.Vector3();
-      if (i > 0 && i < n - 1) {
-        tangent.copy(residues[i + 1].ca).sub(residues[i - 1].ca).normalize();
-      } else if (i < n - 1) {
-        tangent.copy(residues[i + 1].ca).sub(ca).normalize();
-      } else if (i > 0) {
-        tangent.copy(ca).sub(residues[i - 1].ca).normalize();
-      } else {
-        tangent.set(1, 0, 0);
+    const labels = new Array(n).fill("C");
+
+    // Check whether residue i is part of a local pattern starting at j
+    const matchPattern = (j, dists, delta) => {
+      for (let k = 0; k < 3; k++) {
+        const m = j + k + 2; // j+2, j+3, j+4
+        if (m >= n) return false;
+        // Don't match across chain boundaries
+        if (residues[j].chain !== residues[m].chain) return false;
+        const d = residues[j].ca.distanceTo(residues[m].ca);
+        if (Math.abs(d - dists[k]) > delta) return false;
       }
+      return true;
+    };
 
-      // approximate N and C along tangent
-      Npos[i] = ca.clone().addScaledVector(tangent, -1.33); // approx bond distances
-      Cpos[i] = ca.clone().addScaledVector(tangent, 1.33);
-
-      // approximate H attached to N: move ~1.0A from N roughly toward CA
-      Hpos[i] = ca.clone().sub(Npos[i]).normalize().multiplyScalar(1.0).add(Npos[i]);
+    // For each residue, check if any window covering it matches helix or sheet
+    for (let i = 0; i < n; i++) {
+      // A window j..j+4 covers residue i when j <= i <= j+4, so j ∈ [i-4, i]
+      let isHelix = false;
+      let isSheet = false;
+      for (let j = Math.max(0, i - 4); j <= i; j++) {
+        if (j + 4 >= n) continue;
+        if (residues[j].chain !== residues[i].chain) continue;
+        if (!isHelix && matchPattern(j, helixDist, helixDelta)) isHelix = true;
+        if (!isSheet && matchPattern(j, sheetDist, sheetDelta)) isSheet = true;
+        if (isHelix) break; // helix takes priority
+      }
+      if (isHelix) labels[i] = "H";
+      else if (isSheet) labels[i] = "E";
     }
 
-    // Hydrogen bond detection: H_j to O_i
-    const hb = Array.from({ length: n }, () => new Array(n).fill(false));
-    for (let i = 0; i < n; i++) {
-      const Oi = residues[i].o;
-      if (!Oi) continue;
-      for (let j = 0; j < n; j++) {
-        if (i === j) continue;
-        const Hj = Hpos[j];
-        if (!Hj) continue;
-        const r = Oi.distanceTo(Hj);
-        if (r > 3.5) continue; // distance cutoff
-        // angle criterion: N-H...O should be reasonably linear
-        const Nj = Npos[j];
-        const vNH = Hj.clone().sub(Nj).normalize();
-        const vHO = Oi.clone().sub(Hj).normalize();
-        const cosAngle = vNH.dot(vHO);
-        if (cosAngle < 0.4) continue; // require approx directional
-        hb[i][j] = true; // O_i accepted H from j
-      }
-    }
-
-    // classify: helix if i <-> i+4 H-bonds exist (donor->acceptor either way)
-    const label = new Array(n).fill("C");
-    for (let i = 0; i < n; i++) {
-      const j = i + 4;
-      if (j < n) {
-        if (hb[i][j] || hb[j][i]) {
-          label[i] = "H";
-          label[j] = "H";
+    // Post-process: remove isolated SS assignments (no same-type neighbor)
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < n; i++) {
+        if (labels[i] === "C") continue;
+        const sameChainPrev =
+          i > 0 && residues[i - 1].chain === residues[i].chain;
+        const sameChainNext =
+          i < n - 1 && residues[i + 1].chain === residues[i].chain;
+        const prev = sameChainPrev ? labels[i - 1] : "C";
+        const next = sameChainNext ? labels[i + 1] : "C";
+        if (prev !== labels[i] && next !== labels[i]) {
+          labels[i] = "C";
+          changed = true;
         }
       }
     }
 
-    // detect sheet-like mutual hydrogen bonds between strands (i,j) with |i-j|>2
-    const sheetPairs = [];
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 2; j < n; j++) {
-        // mutual or strong reciprocal pattern
-        if ((hb[i][j] && hb[j][i]) || (hb[i][j] || hb[j][i]) ) {
-          // exclude local turns already labeled helix
-          if (label[i] !== "H" && label[j] !== "H") {
-            sheetPairs.push([i, j]);
-          }
-        }
-      }
-    }
-
-    // mark residues participating in sheets; require runs of at least 2
-    const sheetSet = new Set();
-    for (const [i, j] of sheetPairs) {
-      sheetSet.add(i);
-      sheetSet.add(j);
-    }
-    // Apply E for those in sheetSet (unless already H)
-    for (const idx of sheetSet) {
-      if (label[idx] !== "H") label[idx] = "E";
-    }
-
-    // Post-process: short isolated H/E -> C (remove singletons)
-    for (let i = 0; i < n; i++) {
-      const cur = label[i];
-      if (cur === "C") continue;
-      const prev = i > 0 ? label[i - 1] : "C";
-      const next = i < n - 1 ? label[i + 1] : "C";
-      if (prev === "C" && next === "C") label[i] = "C";
-    }
-
-    return label;
+    return labels;
   }
 
   renderSecondaryStructure(ssData, offset) {
@@ -243,12 +235,17 @@ export default class Protein {
     const labels = ssData.ssLabels;
 
     const worldScale = 75;
-    // color everything magenta per request
-    const colorMap = { H: 0xFF3399, E: 0xFF3399, C: 0xFF3399 };
+    // H = helix (magenta), E = sheet (yellow), C = coil (grey)
+    const colorMap = { H: 0x61428c, E: 0xebcc46, C: 0x7c8cc4 };
 
     const makeMaterial = (label) => {
       const color = colorMap[label] || colorMap.C;
-      return new THREE.MeshPhongMaterial({ color, specular: 0xffffff, shininess: 120, side: THREE.DoubleSide });
+      return new THREE.MeshPhongMaterial({
+        color,
+        specular: 0xffffff,
+        shininess: 120,
+        side: THREE.DoubleSide,
+      });
     };
 
     // Group contiguous segments by label (store start/end indices)
@@ -268,7 +265,12 @@ export default class Protein {
         startIdx = i;
       }
     }
-    if (curLabel !== null) segments.push({ label: curLabel, start: startIdx, end: labels.length - 1 });
+    if (curLabel !== null)
+      segments.push({
+        label: curLabel,
+        start: startIdx,
+        end: labels.length - 1,
+      });
 
     let rendered = 0;
     for (const seg of segments) {
@@ -279,41 +281,128 @@ export default class Protein {
       const sIdx = Math.max(0, seg.start - 2);
       const eIdx = Math.min(residues.length - 1, seg.end + 2);
       const points = [];
-      for (let k = sIdx; k <= eIdx; k++) points.push(residues[k].ca.clone().add(offset).multiplyScalar(worldScale));
+      for (let k = sIdx; k <= eIdx; k++)
+        points.push(
+          residues[k].ca.clone().add(offset).multiplyScalar(worldScale),
+        );
       const segmentResidues = residues.slice(sIdx, eIdx + 1);
       const curve = new THREE.CatmullRomCurve3(points);
       const samplesPerRes = 6;
-      const tubularSegments = Math.max( Math.floor(points.length * samplesPerRes), 12 );
+      const tubularSegments = Math.max(
+        Math.floor(points.length * samplesPerRes),
+        12,
+      );
 
       if (seg.label === "C") {
         // coils -> round thin tube (radius 0.3 Å scaled)
         const radius = 0.3 * worldScale;
         const radialSegments = 8;
-        const tubeGeom = new THREE.TubeGeometry(curve, tubularSegments, radius, radialSegments, false);
-        const mat = makeMaterial('C');
+        const tubeGeom = new THREE.TubeGeometry(
+          curve,
+          tubularSegments,
+          radius,
+          radialSegments,
+          false,
+        );
+        const mat = makeMaterial("C");
         const mesh = new THREE.Mesh(tubeGeom, mat);
+        this.setupMeshInteraction(mesh);
         this.root.add(mesh);
         rendered++;
         continue;
       }
 
       // For ribbons (H and E) build extruded rectangular cross-section oriented by O atom
-      const geom = this.buildExtrudedRibbon(segmentResidues, seg.label, offset, worldScale, tubularSegments);
+      const geom = this.buildExtrudedRibbon(
+        segmentResidues,
+        seg.label,
+        offset,
+        worldScale,
+        tubularSegments,
+      );
       const mat = makeMaterial(seg.label);
-      this.root.add(new THREE.Mesh(geom, mat));
+      const mesh = new THREE.Mesh(geom, mat);
+      this.setupMeshInteraction(mesh);
+      this.root.add(mesh);
       rendered++;
     }
 
     return rendered;
   }
 
+  // Setup click interaction for protein meshes
+  setupMeshInteraction(mesh) {
+    // Make mesh selectable
+    mesh.selectable = true;
+    this.meshes.push(mesh);
+    this.experience.selectableObjects.push(mesh);
+
+    // Add click handler that spawns a cube at intersection point
+    mesh.onSelect = () => {
+      // Get the current intersection point from the pointer
+      const intersect = this.experience.pointer.currentIntersect;
+      if (intersect && intersect.point) {
+        this.spawnTemporaryCube(intersect.point);
+      }
+    };
+  }
+
+  // Spawn a temporary cube at the given world position
+  spawnTemporaryCube(position) {
+    // Create a small cube (0.1 world units)
+    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const material = new THREE.MeshPhongMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 1.0,
+    });
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.copy(position);
+    this.scene.add(cube);
+
+    // Animate fade out over 2 seconds
+    const startTime = performance.now();
+    const duration = 2000; // 2 seconds
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1.0);
+
+      // Fade out opacity
+      material.opacity = 1.0 - progress;
+
+      // Optional: scale up slightly while fading
+      const scale = 1.0 + progress * 0.5;
+      cube.scale.set(scale, scale, scale);
+
+      if (progress < 1.0) {
+        requestAnimationFrame(animate);
+      } else {
+        // Remove cube when animation completes
+        this.scene.remove(cube);
+        geometry.dispose();
+        material.dispose();
+      }
+    };
+
+    animate();
+  }
+
   // Build an extruded rectangular ribbon mesh for a segment.
-  buildExtrudedRibbon(residuesSegment, segLabel, offset, worldScale, tubularSegments) {
-    const centers = residuesSegment.map((r) => r.ca.clone().add(offset).multiplyScalar(worldScale));
+  buildExtrudedRibbon(
+    residuesSegment,
+    segLabel,
+    offset,
+    worldScale,
+    tubularSegments,
+  ) {
+    const centers = residuesSegment.map((r) =>
+      r.ca.clone().add(offset).multiplyScalar(worldScale),
+    );
     const curve = new THREE.CatmullRomCurve3(centers);
     const frames = curve.computeFrenetFrames(tubularSegments, false);
 
-    const widthA = segLabel === "H" ? 6.0 : 2.5;
+    const widthA = segLabel === "H" ? 2.0 : 2.5;
     const heightA = segLabel === "H" ? 0.2 : 0.4;
     const height = heightA * worldScale;
     const samples = tubularSegments;
@@ -321,7 +410,10 @@ export default class Protein {
     // For sheets we'll taper last 3 residues into an arrow
     const residuesCount = residuesSegment.length;
     const taperResidues = segLabel === "E" ? Math.min(3, residuesCount) : 0;
-    const samplesPerResidue = Math.max(1, Math.floor(samples / Math.max(1, residuesCount - 1)));
+    const samplesPerResidue = Math.max(
+      1,
+      Math.floor(samples / Math.max(1, residuesCount - 1)),
+    );
     const taperSamples = taperResidues * samplesPerResidue;
 
     const positions = [];
@@ -333,17 +425,71 @@ export default class Protein {
     const pushQuad = (p, normalVec, binormalVec, w) => {
       const halfW = w / 2;
       // order: left-top, left-bottom, right-bottom, right-top
-      const lt = p.clone().addScaledVector(normalVec, halfW).addScaledVector(binormalVec, height / 2);
-      const lb = p.clone().addScaledVector(normalVec, halfW).addScaledVector(binormalVec, -height / 2);
-      const rb = p.clone().addScaledVector(normalVec, -halfW).addScaledVector(binormalVec, -height / 2);
-      const rt = p.clone().addScaledVector(normalVec, -halfW).addScaledVector(binormalVec, height / 2);
-      positions.push(lt.x, lt.y, lt.z, lb.x, lb.y, lb.z, rb.x, rb.y, rb.z, rt.x, rt.y, rt.z);
+      const lt = p
+        .clone()
+        .addScaledVector(normalVec, halfW)
+        .addScaledVector(binormalVec, height / 2);
+      const lb = p
+        .clone()
+        .addScaledVector(normalVec, halfW)
+        .addScaledVector(binormalVec, -height / 2);
+      const rb = p
+        .clone()
+        .addScaledVector(normalVec, -halfW)
+        .addScaledVector(binormalVec, -height / 2);
+      const rt = p
+        .clone()
+        .addScaledVector(normalVec, -halfW)
+        .addScaledVector(binormalVec, height / 2);
+      positions.push(
+        lt.x,
+        lt.y,
+        lt.z,
+        lb.x,
+        lb.y,
+        lb.z,
+        rb.x,
+        rb.y,
+        rb.z,
+        rt.x,
+        rt.y,
+        rt.z,
+      );
       // approximate normals per corner as combination
-      const nlt = normalVec.clone().multiplyScalar(0.5).add(binormalVec.clone().multiplyScalar(0.5)).normalize();
-      const nlb = normalVec.clone().multiplyScalar(0.5).add(binormalVec.clone().multiplyScalar(-0.5)).normalize();
-      const nrb = normalVec.clone().multiplyScalar(-0.5).add(binormalVec.clone().multiplyScalar(-0.5)).normalize();
-      const nrt = normalVec.clone().multiplyScalar(-0.5).add(binormalVec.clone().multiplyScalar(0.5)).normalize();
-      normals.push(nlt.x, nlt.y, nlt.z, nlb.x, nlb.y, nlb.z, nrb.x, nrb.y, nrb.z, nrt.x, nrt.y, nrt.z);
+      const nlt = normalVec
+        .clone()
+        .multiplyScalar(0.5)
+        .add(binormalVec.clone().multiplyScalar(0.5))
+        .normalize();
+      const nlb = normalVec
+        .clone()
+        .multiplyScalar(0.5)
+        .add(binormalVec.clone().multiplyScalar(-0.5))
+        .normalize();
+      const nrb = normalVec
+        .clone()
+        .multiplyScalar(-0.5)
+        .add(binormalVec.clone().multiplyScalar(-0.5))
+        .normalize();
+      const nrt = normalVec
+        .clone()
+        .multiplyScalar(-0.5)
+        .add(binormalVec.clone().multiplyScalar(0.5))
+        .normalize();
+      normals.push(
+        nlt.x,
+        nlt.y,
+        nlt.z,
+        nlb.x,
+        nlb.y,
+        nlb.z,
+        nrb.x,
+        nrb.y,
+        nrb.z,
+        nrt.x,
+        nrt.y,
+        nrt.z,
+      );
       uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
     };
 
@@ -371,17 +517,9 @@ export default class Protein {
         normalVec = frames.normals[i].clone();
       }
 
-      let binormalVec = new THREE.Vector3().crossVectors(tangent, normalVec).normalize();
-
-      // helix curl: rotate normal around tangent and offset position so ribbon wraps
-      if (segLabel === "H") {
-        const turns = residuesSegment.length / 3.6; // approx helix turns
-        const angle = t * turns * Math.PI * 2.0;
-        normalVec.applyAxisAngle(tangent, angle);
-        // recompute binormal after rotation
-        binormalVec = new THREE.Vector3().crossVectors(tangent, normalVec).normalize();
-        // intentionally no wrap offset: keep ribbon centered on CA path for clearer width
-      }
+      let binormalVec = new THREE.Vector3()
+        .crossVectors(tangent, normalVec)
+        .normalize();
 
       // compute width with taper for sheets
       let width = widthA * worldScale;
@@ -393,12 +531,8 @@ export default class Protein {
         }
       }
 
-      // For helices make the cross-section flat: width along binormal, height along normal
-      if (segLabel === "H") {
-        pushQuad(p, binormalVec, normalVec, width);
-      } else {
-        pushQuad(p, normalVec, binormalVec, width);
-      }
+      // Width along normal (CA→O), height along binormal — flat face toward helix center
+      pushQuad(p, normalVec, binormalVec, width);
     }
 
     // build indices between quads
@@ -425,7 +559,9 @@ export default class Protein {
     if (segLabel === "E" && taperSamples > 0) {
       // add tip vertex
       const end = curve.getPointAt(1);
-      const tanEnd = frames.tangents[frames.tangents.length - 1].clone().normalize();
+      const tanEnd = frames.tangents[frames.tangents.length - 1]
+        .clone()
+        .normalize();
       const tip = end.clone().addScaledVector(tanEnd, 0.6 * worldScale);
       const tipIndex = positions.length / 3;
       positions.push(tip.x, tip.y, tip.z);
@@ -446,8 +582,14 @@ export default class Protein {
     }
 
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positions, 3),
+    );
+    geometry.setAttribute(
+      "normal",
+      new THREE.Float32BufferAttribute(normals, 3),
+    );
     geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
