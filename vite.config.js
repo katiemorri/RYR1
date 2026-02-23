@@ -3,7 +3,10 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 
 const isCodeSandbox =
   "SANDBOX_URL" in process.env || "CODESANDBOX_HOST" in process.env;
-const isCodeSpaces = "CODESPACES" in process.env;
+const isCodespaces =
+  "CODESPACES" in process.env ||
+  "GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN" in process.env;
+const useHttps = !isCodespaces;
 
 export default {
   root: "src/",
@@ -12,7 +15,7 @@ export default {
   server: {
     host: true,
     open: !isCodeSandbox, // Open if it's not a CodeSandbox
-    https: !isCodeSpaces,
+    https: useHttps,
   },
   build: {
     outDir: "../docs",
@@ -20,5 +23,5 @@ export default {
     sourcemap: true,
     minify: false,
   },
-  plugins: [glsl(), basicSsl()],
+  plugins: [glsl(), ...(useHttps ? [basicSsl()] : [])],
 };
