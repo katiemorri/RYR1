@@ -338,7 +338,7 @@ export default class Protein {
     const curve = new THREE.CatmullRomCurve3(centers);
     const frames = curve.computeFrenetFrames(tubularSegments, false);
 
-    const widthA = segLabel === "H" ? 6.0 : 2.5;
+    const widthA = segLabel === "H" ? 2.0 : 2.5;
     const heightA = segLabel === "H" ? 0.2 : 0.4;
     const height = heightA * worldScale;
     const samples = tubularSegments;
