@@ -13,6 +13,12 @@ export default class World {
     // this.depthMarker = new DepthMarker();
     // Wait for resources
 
+    // lighting: directional top-left, ambient, weak fill from opposite side
+    const dir = new THREE.DirectionalLight(0xffffff, 1.5);
+    dir.position.set(-1, 1, 0.5);
+    dir.position.multiplyScalar(10);
+    this.scene.add(dir);
+
     this.resources.on("ready", () => {
       this.stars = new Stars();
       this.environment = new Environment();
@@ -20,7 +26,7 @@ export default class World {
         "8X48.pdb",
         "Protein Title",
         "Protein Description",
-        "Protein Metadata"
+        "Protein Metadata",
       );
     });
   }
