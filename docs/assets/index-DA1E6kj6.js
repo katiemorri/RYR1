@@ -32220,30 +32220,6 @@ class Protein {
     this.group.rotation.x -= Math.PI / 2;
     this.group.position.y += 1.2;
     this.scene.background = new Color(16777215);
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-    const dir = new DirectionalLight(16777215, 1.5);
-    dir.position.set(-1, 1, 0.5);
-    dir.position.multiplyScalar(10);
-    this.scene.add(dir);
-    const ambient = new AmbientLight(16777215, 0.4);
-    this.scene.add(ambient);
-    const fill = new DirectionalLight(16777215, 0.3);
-    fill.position.set(1, -0.5, -0.5);
-    fill.position.multiplyScalar(10);
-    this.scene.add(fill);
-  }
-  loadProtein(filename) {
-    const url = "./" + filename;
-    fetch(url).then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} while loading ${url}`);
-      }
-      return response.text();
-    }).then((pdbText) => {
-      const pdb = this.loader.parse(pdbText);
-      const residues = this.parseResiduesFromPDB(pdbText);
-      const ssLabels = this.computeDSSP(residues);
-========
   }
   loadProtein(filename) {
     const pdbUrl = "./" + filename;
@@ -32275,7 +32251,6 @@ class Protein {
       } else {
         ssLabels = this.computeDSSP(residues);
       }
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
       this.onProteinLoaded(pdb, { residues, ssLabels });
     }).catch((error) => {
       console.error("Error loading protein:", error);
@@ -32331,13 +32306,9 @@ class Protein {
     }
     const residues = [];
     for (const [chain, arr] of chains) {
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-      arr.sort((a, b) => a.resSeq - b.resSeq || a.insertionCode.localeCompare(b.insertionCode));
-========
       arr.sort(
         (a, b) => a.resSeq - b.resSeq || a.insertionCode.localeCompare(b.insertionCode)
       );
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
       for (const r of arr) {
         if (!r.ca) continue;
         residues.push(r);
@@ -32345,86 +32316,6 @@ class Protein {
     }
     return residues;
   }
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-  // Very small, approximate DSSP-like assignment using CA and O coordinates only.
-  // Returns an array of labels 'H' (helix), 'E' (sheet), 'C' (coil) matching residues order.
-  computeDSSP(residues) {
-    const n = residues.length;
-    if (n === 0) return [];
-    const Npos = new Array(n);
-    const Cpos = new Array(n);
-    const Hpos = new Array(n);
-    for (let i = 0; i < n; i++) {
-      const ca = residues[i].ca;
-      let tangent = new Vector3();
-      if (i > 0 && i < n - 1) {
-        tangent.copy(residues[i + 1].ca).sub(residues[i - 1].ca).normalize();
-      } else if (i < n - 1) {
-        tangent.copy(residues[i + 1].ca).sub(ca).normalize();
-      } else if (i > 0) {
-        tangent.copy(ca).sub(residues[i - 1].ca).normalize();
-      } else {
-        tangent.set(1, 0, 0);
-      }
-      Npos[i] = ca.clone().addScaledVector(tangent, -1.33);
-      Cpos[i] = ca.clone().addScaledVector(tangent, 1.33);
-      Hpos[i] = ca.clone().sub(Npos[i]).normalize().multiplyScalar(1).add(Npos[i]);
-    }
-    const hb = Array.from({ length: n }, () => new Array(n).fill(false));
-    for (let i = 0; i < n; i++) {
-      const Oi = residues[i].o;
-      if (!Oi) continue;
-      for (let j = 0; j < n; j++) {
-        if (i === j) continue;
-        const Hj = Hpos[j];
-        if (!Hj) continue;
-        const r = Oi.distanceTo(Hj);
-        if (r > 3.5) continue;
-        const Nj = Npos[j];
-        const vNH = Hj.clone().sub(Nj).normalize();
-        const vHO = Oi.clone().sub(Hj).normalize();
-        const cosAngle = vNH.dot(vHO);
-        if (cosAngle < 0.4) continue;
-        hb[i][j] = true;
-      }
-    }
-    const label = new Array(n).fill("C");
-    for (let i = 0; i < n; i++) {
-      const j = i + 4;
-      if (j < n) {
-        if (hb[i][j] || hb[j][i]) {
-          label[i] = "H";
-          label[j] = "H";
-        }
-      }
-    }
-    const sheetPairs = [];
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 2; j < n; j++) {
-        if (hb[i][j] && hb[j][i] || (hb[i][j] || hb[j][i])) {
-          if (label[i] !== "H" && label[j] !== "H") {
-            sheetPairs.push([i, j]);
-          }
-        }
-      }
-    }
-    const sheetSet = /* @__PURE__ */ new Set();
-    for (const [i, j] of sheetPairs) {
-      sheetSet.add(i);
-      sheetSet.add(j);
-    }
-    for (const idx of sheetSet) {
-      if (label[idx] !== "H") label[idx] = "E";
-    }
-    for (let i = 0; i < n; i++) {
-      const cur = label[i];
-      if (cur === "C") continue;
-      const prev = i > 0 ? label[i - 1] : "C";
-      const next = i < n - 1 ? label[i + 1] : "C";
-      if (prev === "C" && next === "C") label[i] = "C";
-    }
-    return label;
-========
   // Fallback SS assignment using CA-CA distance patterns (Zhang & Skolnick method,
   // as used by NGL Viewer). Needs only CA positions — no backbone reconstruction.
   // Reference: https://github.com/nglviewer/ngl/blob/master/src/structure/structure-utils.ts
@@ -32475,19 +32366,12 @@ class Protein {
       }
     }
     return labels;
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
   }
   renderSecondaryStructure(ssData, offset) {
     if (!ssData || !ssData.residues || !ssData.ssLabels) return 0;
     const residues = ssData.residues;
     const labels = ssData.ssLabels;
     const worldScale = 75;
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-    const colorMap = { H: 16724889, E: 16724889, C: 16724889 };
-    const makeMaterial = (label) => {
-      const color = colorMap[label] || colorMap.C;
-      return new MeshPhongMaterial({ color, specular: 16777215, shininess: 120, side: DoubleSide });
-========
     const colorMap = { H: 6374028, E: 15453254, C: 8162500 };
     const makeMaterial = (label) => {
       const color = colorMap[label] || colorMap.C;
@@ -32497,7 +32381,6 @@ class Protein {
         shininess: 120,
         side: DoubleSide
       });
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
     };
     const segments = [];
     let curLabel = null;
@@ -32515,16 +32398,12 @@ class Protein {
         startIdx = i;
       }
     }
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-    if (curLabel !== null) segments.push({ label: curLabel, start: startIdx, end: labels.length - 1 });
-========
     if (curLabel !== null)
       segments.push({
         label: curLabel,
         start: startIdx,
         end: labels.length - 1
       });
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
     let rendered = 0;
     for (const seg of segments) {
       const segLength = seg.end - seg.start + 1;
@@ -32532,26 +32411,6 @@ class Protein {
       const sIdx = Math.max(0, seg.start - 2);
       const eIdx = Math.min(residues.length - 1, seg.end + 2);
       const points = [];
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-      for (let k = sIdx; k <= eIdx; k++) points.push(residues[k].ca.clone().add(offset).multiplyScalar(worldScale));
-      const segmentResidues = residues.slice(sIdx, eIdx + 1);
-      const curve = new CatmullRomCurve3(points);
-      const samplesPerRes = 6;
-      const tubularSegments = Math.max(Math.floor(points.length * samplesPerRes), 12);
-      if (seg.label === "C") {
-        const radius = 0.3 * worldScale;
-        const radialSegments = 8;
-        const tubeGeom = new TubeGeometry(curve, tubularSegments, radius, radialSegments, false);
-        const mat2 = makeMaterial("C");
-        const mesh = new Mesh(tubeGeom, mat2);
-        this.root.add(mesh);
-        rendered++;
-        continue;
-      }
-      const geom = this.buildExtrudedRibbon(segmentResidues, seg.label, offset, worldScale, tubularSegments);
-      const mat = makeMaterial(seg.label);
-      this.root.add(new Mesh(geom, mat));
-========
       for (let k = sIdx; k <= eIdx; k++)
         points.push(
           residues[k].ca.clone().add(offset).multiplyScalar(worldScale)
@@ -32591,19 +32450,10 @@ class Protein {
       const mesh = new Mesh(geom, mat);
       this.setupMeshInteraction(mesh);
       this.root.add(mesh);
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
       rendered++;
     }
     return rendered;
   }
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-  // Build an extruded rectangular ribbon mesh for a segment.
-  buildExtrudedRibbon(residuesSegment, segLabel, offset, worldScale, tubularSegments) {
-    const centers = residuesSegment.map((r) => r.ca.clone().add(offset).multiplyScalar(worldScale));
-    const curve = new CatmullRomCurve3(centers);
-    const frames = curve.computeFrenetFrames(tubularSegments, false);
-    const widthA = segLabel === "H" ? 6 : 2.5;
-========
   // Setup click interaction for protein meshes
   setupMeshInteraction(mesh) {
     mesh.selectable = true;
@@ -32653,20 +32503,15 @@ class Protein {
     const curve = new CatmullRomCurve3(centers);
     const frames = curve.computeFrenetFrames(tubularSegments, false);
     const widthA = segLabel === "H" ? 2 : 2.5;
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
     const heightA = segLabel === "H" ? 0.2 : 0.4;
     const height = heightA * worldScale;
     const samples = tubularSegments;
     const residuesCount = residuesSegment.length;
     const taperResidues = segLabel === "E" ? Math.min(3, residuesCount) : 0;
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-    const samplesPerResidue = Math.max(1, Math.floor(samples / Math.max(1, residuesCount - 1)));
-========
     const samplesPerResidue = Math.max(
       1,
       Math.floor(samples / Math.max(1, residuesCount - 1))
     );
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
     const taperSamples = taperResidues * samplesPerResidue;
     const positions = [];
     const normals = [];
@@ -32678,9 +32523,6 @@ class Protein {
       const lb = p.clone().addScaledVector(normalVec, halfW).addScaledVector(binormalVec, -height / 2);
       const rb = p.clone().addScaledVector(normalVec, -halfW).addScaledVector(binormalVec, -height / 2);
       const rt = p.clone().addScaledVector(normalVec, -halfW).addScaledVector(binormalVec, height / 2);
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-      positions.push(lt.x, lt.y, lt.z, lb.x, lb.y, lb.z, rb.x, rb.y, rb.z, rt.x, rt.y, rt.z);
-========
       positions.push(
         lt.x,
         lt.y,
@@ -32695,14 +32537,10 @@ class Protein {
         rt.y,
         rt.z
       );
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
       const nlt = normalVec.clone().multiplyScalar(0.5).add(binormalVec.clone().multiplyScalar(0.5)).normalize();
       const nlb = normalVec.clone().multiplyScalar(0.5).add(binormalVec.clone().multiplyScalar(-0.5)).normalize();
       const nrb = normalVec.clone().multiplyScalar(-0.5).add(binormalVec.clone().multiplyScalar(-0.5)).normalize();
       const nrt = normalVec.clone().multiplyScalar(-0.5).add(binormalVec.clone().multiplyScalar(0.5)).normalize();
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-      normals.push(nlt.x, nlt.y, nlt.z, nlb.x, nlb.y, nlb.z, nrb.x, nrb.y, nrb.z, nrt.x, nrt.y, nrt.z);
-========
       normals.push(
         nlt.x,
         nlt.y,
@@ -32717,7 +32555,6 @@ class Protein {
         nrt.y,
         nrt.z
       );
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
       uvs.push(0, 0, 0, 1, 1, 1, 1, 0);
     };
     for (let i = 0; i <= samples; i++) {
@@ -32740,15 +32577,6 @@ class Protein {
         normalVec = frames.normals[i].clone();
       }
       let binormalVec = new Vector3().crossVectors(tangent, normalVec).normalize();
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-      if (segLabel === "H") {
-        const turns = residuesSegment.length / 3.6;
-        const angle = t * turns * Math.PI * 2;
-        normalVec.applyAxisAngle(tangent, angle);
-        binormalVec = new Vector3().crossVectors(tangent, normalVec).normalize();
-      }
-========
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
       let width = widthA * worldScale;
       if (segLabel === "E" && taperSamples > 0) {
         const samplesFromEnd = samples - i;
@@ -32757,15 +32585,7 @@ class Protein {
           width = width * f;
         }
       }
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-      if (segLabel === "H") {
-        pushQuad(p, binormalVec, normalVec, width);
-      } else {
-        pushQuad(p, normalVec, binormalVec, width);
-      }
-========
       pushQuad(p, normalVec, binormalVec, width);
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
     }
     const quadCount = samples + 1;
     for (let i = 0; i < quadCount - 1; i++) {
@@ -32802,10 +32622,6 @@ class Protein {
       indices.push(lastBase, lastBase + 3, lastBase + 2);
     }
     const geometry = new BufferGeometry();
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("normal", new Float32BufferAttribute(normals, 3));
-========
     geometry.setAttribute(
       "position",
       new Float32BufferAttribute(positions, 3)
@@ -32814,7 +32630,6 @@ class Protein {
       "normal",
       new Float32BufferAttribute(normals, 3)
     );
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
     geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
@@ -33145,8 +32960,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-<<<<<<<< HEAD:docs/assets/index-BcEzhEkj.js
-//# sourceMappingURL=index-BcEzhEkj.js.map
-========
 //# sourceMappingURL=index-DA1E6kj6.js.map
->>>>>>>> upstream/main:docs/assets/index-DA1E6kj6.js
