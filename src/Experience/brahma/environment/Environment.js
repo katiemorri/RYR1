@@ -6,7 +6,7 @@ export default class Environment {
     this.experience = new Experience();
     this.scene = this.experience.scene;
     this.resources = this.experience.resources;
-    this.scene.background = new THREE.Color("AliceBlue");
+    this.scene.background = new THREE.Color("Beige");
     // this.setSunLight();
     this.setAmbientLight();
     // this.scene.fog = new THREE.Fog("#ffffff", 1, 30);

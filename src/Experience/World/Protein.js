@@ -21,6 +21,9 @@ export default class Protein {
     this.group.add(this.root);
     this.scene.add(this.group);
 
+    // Store protein meshes for interaction
+    this.meshes = [];
+
     // Initialize loader and load the protein
     this.loader = new PDBLoader();
     this.loadProtein(filename);
@@ -232,8 +235,8 @@ export default class Protein {
     const labels = ssData.ssLabels;
 
     const worldScale = 75;
-    // H = helix (green), E = sheet (yellow), C = coil (magenta)
-    const colorMap = { H: 0x00cc44, E: 0xffcc00, C: 0xff33cc };
+    // H = helix (magenta), E = sheet (yellow), C = coil (grey)
+    const colorMap = { H: 0x61428c, E: 0xebcc46, C: 0x7c8cc4 };
 
     const makeMaterial = (label) => {
       const color = colorMap[label] || colorMap.C;
@@ -303,6 +306,7 @@ export default class Protein {
         );
         const mat = makeMaterial("C");
         const mesh = new THREE.Mesh(tubeGeom, mat);
+        this.setupMeshInteraction(mesh);
         this.root.add(mesh);
         rendered++;
         continue;
@@ -317,11 +321,71 @@ export default class Protein {
         tubularSegments,
       );
       const mat = makeMaterial(seg.label);
-      this.root.add(new THREE.Mesh(geom, mat));
+      const mesh = new THREE.Mesh(geom, mat);
+      this.setupMeshInteraction(mesh);
+      this.root.add(mesh);
       rendered++;
     }
 
     return rendered;
+  }
+
+  // Setup click interaction for protein meshes
+  setupMeshInteraction(mesh) {
+    // Make mesh selectable
+    mesh.selectable = true;
+    this.meshes.push(mesh);
+    this.experience.selectableObjects.push(mesh);
+
+    // Add click handler that spawns a cube at intersection point
+    mesh.onSelect = () => {
+      // Get the current intersection point from the pointer
+      const intersect = this.experience.pointer.currentIntersect;
+      if (intersect && intersect.point) {
+        this.spawnTemporaryCube(intersect.point);
+      }
+    };
+  }
+
+  // Spawn a temporary cube at the given world position
+  spawnTemporaryCube(position) {
+    // Create a small cube (0.1 world units)
+    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const material = new THREE.MeshPhongMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 1.0,
+    });
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.copy(position);
+    this.scene.add(cube);
+
+    // Animate fade out over 2 seconds
+    const startTime = performance.now();
+    const duration = 2000; // 2 seconds
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1.0);
+
+      // Fade out opacity
+      material.opacity = 1.0 - progress;
+
+      // Optional: scale up slightly while fading
+      const scale = 1.0 + progress * 0.5;
+      cube.scale.set(scale, scale, scale);
+
+      if (progress < 1.0) {
+        requestAnimationFrame(animate);
+      } else {
+        // Remove cube when animation completes
+        this.scene.remove(cube);
+        geometry.dispose();
+        material.dispose();
+      }
+    };
+
+    animate();
   }
 
   // Build an extruded rectangular ribbon mesh for a segment.
@@ -457,18 +521,6 @@ export default class Protein {
         .crossVectors(tangent, normalVec)
         .normalize();
 
-      // helix curl: rotate normal around tangent and offset position so ribbon wraps
-      if (segLabel === "H") {
-        const turns = residuesSegment.length / 3.6; // approx helix turns
-        const angle = t * turns * Math.PI * 2.0;
-        normalVec.applyAxisAngle(tangent, angle);
-        // recompute binormal after rotation
-        binormalVec = new THREE.Vector3()
-          .crossVectors(tangent, normalVec)
-          .normalize();
-        // intentionally no wrap offset: keep ribbon centered on CA path for clearer width
-      }
-
       // compute width with taper for sheets
       let width = widthA * worldScale;
       if (segLabel === "E" && taperSamples > 0) {
@@ -479,12 +531,8 @@ export default class Protein {
         }
       }
 
-      // For helices make the cross-section flat: width along binormal, height along normal
-      if (segLabel === "H") {
-        pushQuad(p, binormalVec, normalVec, width);
-      } else {
-        pushQuad(p, normalVec, binormalVec, width);
-      }
+      // Width along normal (CA→O), height along binormal — flat face toward helix center
+      pushQuad(p, normalVec, binormalVec, width);
     }
 
     // build indices between quads

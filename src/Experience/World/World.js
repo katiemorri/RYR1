@@ -3,6 +3,7 @@ import { Environment, Floor, Stars } from "../brahma/Brahma.js";
 import Experience from "../Experience.js";
 import Sky from "./Sky.js";
 import Protein from "./Protein.js";
+import Callout from "./Callout.js";
 export default class World {
   constructor() {
     this.experience = new Experience();
@@ -22,6 +23,7 @@ export default class World {
     this.resources.on("ready", () => {
       this.stars = new Stars();
       this.environment = new Environment();
+      this.callout = new Callout();
       this.protein = new Protein(
         "8X48.pdb",
         "Protein Title",
