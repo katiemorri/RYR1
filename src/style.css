@@ -1,30 +1,74 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 html,
 body {
   overflow: hidden;
   height: 100%;
 }
 
-.legend-container {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  z-index: 10;
-  background-color: rgba(255, 255, 255, 0.95);
-  padding: 15px 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  font-family: Arial, sans-serif;
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "Sour Gummy", sans-serif;
+}
+h1,
+em,
+a {
+  font-family: "Sour Gummy", sans-serif;
 }
 
-.legend-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
+p,
+li {
+  font-family: "Montserrat", sans-serif;
+}
+h1 {
+  font-size: 1.3em;
+}
+h2 {
+  font-weight: 300;
+  font-size: 1.2em;
+}
+p,
+li {
+  font-size: 0.8em;
+  font-weight: 300;
+}
+ul,
+ol {
+  margin-left: 2em;
+}
+
+main {
+  position: absolute;
+  /* round corners */
+  border-radius: 10px;
+  margin-top: 3em;
+  margin-left: 3em;
+  padding: 1em;
+  z-index: 10;
+  color: aliceblue;
+  background-color: rgba(0, 0, 0, 0.5);
+  max-width: 400px;
+}
+main > h1 {
+  margin-bottom: 0.5em;
+}
+main > p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+main > ol {
+  margin: 0.25em;
+}
+main > ol > li {
+  margin: 0.2em;
+}
+a {
+  color: aliceblue;
+}
+main > a {
+  display: inline-block;
+  margin-right: 0.5em;
+  margin-top: 0.3em;
+}
+main > a:hover {
+  color: lightblue;
 }
