@@ -60,6 +60,7 @@ export default class Protein {
       .then(([pdbText, ssJson]) => {
         const pdb = this.loader.parse(pdbText);
         const residues = this.parseResiduesFromPDB(pdbText);
+        const missingResidues = this.parseMissingResiduesFromPDB(pdbText);
 
         let ssLabels;
         if (ssJson && ssJson.assignments) {
@@ -82,7 +83,7 @@ export default class Protein {
           ssLabels = this.computeDSSP(residues);
         }
 
-        this.onProteinLoaded(pdb, { residues, ssLabels });
+        this.onProteinLoaded(pdb, { residues, ssLabels, missingResidues });
       })
       .catch((error) => {
         console.error("Error loading protein:", error);
@@ -103,10 +104,337 @@ export default class Protein {
       secondaryStructure,
       offset,
     );
+    const traceStats = this.renderBackboneTrace(secondaryStructure, offset);
     console.log(
       `Protein loaded: rendered ${segmentCount} secondary-structure segments`,
     );
+    console.log(
+      `Backbone trace: ${traceStats.solidSegments} solid segments, ` +
+        `${traceStats.dashedSegments} dashed missing-residue segments`,
+    );
   }
+
+  // Parse missing residues from PDB REMARK 465 records.
+  // Returns array of { chain, resSeq, insertionCode }.
+  parseMissingResiduesFromPDB(pdbText) {
+    const lines = pdbText.split("\n");
+    const missing = [];
+    const seen = new Set();
+
+    for (const line of lines) {
+      if (!line.startsWith("REMARK 465")) continue;
+
+      // PDB fixed columns first (most reliable)
+      let chain = line.slice(19, 20).trim();
+      let resSeq = parseInt(line.slice(21, 26).trim(), 10);
+      let insertionCode = line.slice(26, 27).trim() || "";
+
+      // Fallback for slightly shifted records
+      if (Number.isNaN(resSeq)) {
+        const match = line.match(
+          /^REMARK 465\s+(?:\d+\s+)?[A-Z0-9]{3}\s+([A-Za-z0-9_])\s*(-?\d+)([A-Za-z]?)\s*$/,
+        );
+        if (!match) continue;
+        chain = match[1].trim();
+        resSeq = parseInt(match[2], 10);
+        insertionCode = match[3] || "";
+      }
+
+      if (Number.isNaN(resSeq)) continue;
+      if (!chain) chain = "_";
+
+      const key = `${chain}:${resSeq}:${insertionCode}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      missing.push({ chain, resSeq, insertionCode });
+    }
+
+    return missing;
+  }
+
+  buildMissingResiduesByChain(missingResidues) {
+    const missingByChain = new Map();
+    for (const m of missingResidues || []) {
+      if (!missingByChain.has(m.chain)) missingByChain.set(m.chain, []);
+      missingByChain.get(m.chain).push(m);
+    }
+
+    for (const arr of missingByChain.values()) {
+      arr.sort(
+        (a, b) =>
+          a.resSeq - b.resSeq ||
+          a.insertionCode.localeCompare(b.insertionCode),
+      );
+    }
+
+    return missingByChain;
+  }
+
+  hasMissingBetweenResidues(currentResidue, nextResidue, missingByChain) {
+    if (currentResidue.chain !== nextResidue.chain) return false;
+    const chainMissing = missingByChain.get(currentResidue.chain);
+    if (!chainMissing || chainMissing.length === 0) return false;
+
+    if (nextResidue.resSeq - currentResidue.resSeq > 1) return true;
+
+    for (const m of chainMissing) {
+      if (m.resSeq > currentResidue.resSeq && m.resSeq < nextResidue.resSeq) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  buildContiguousResidueBlocks(residues, missingByChain) {
+    const blocks = [];
+    if (!residues || residues.length === 0) return blocks;
+
+    let start = 0;
+    for (let i = 1; i < residues.length; i++) {
+      const prev = residues[i - 1];
+      const cur = residues[i];
+      const chainBreak = prev.chain !== cur.chain;
+      const missingBreak = this.hasMissingBetweenResidues(
+        prev,
+        cur,
+        missingByChain,
+      );
+
+      if (chainBreak || missingBreak) {
+        blocks.push({ start, end: i - 1 });
+        start = i;
+      }
+    }
+    blocks.push({ start, end: residues.length - 1 });
+    return blocks;
+  }
+
+  renderBackboneTrace(ssData, offset) {
+    if (!ssData || !ssData.residues) {
+      return { solidSegments: 0, dashedSegments: 0 };
+    }
+
+    const residues = ssData.residues;
+    const missingResidues = ssData.missingResidues || [];
+    const worldScale = 75;
+    const missingByChain = this.buildMissingResiduesByChain(missingResidues);
+    const backboneColor = 0x7c8cc4;
+    const backboneOpacity = 0.8;
+    const dashSize = 75;
+    const gapSize = 35;
+    const backboneRadius = 0.1 * worldScale;
+
+    const solidPositions = [];
+    const dashedPositions = [];
+
+    for (let i = 0; i < residues.length - 1; i++) {
+      const currentResidue = residues[i];
+      const nextResidue = residues[i + 1];
+      if (currentResidue.chain !== nextResidue.chain) continue;
+
+      const p1 = currentResidue.ca
+        .clone()
+        .add(offset)
+        .multiplyScalar(worldScale);
+      const p2 = nextResidue.ca.clone().add(offset).multiplyScalar(worldScale);
+
+      const hasMissingGap = this.hasMissingBetweenResidues(
+        currentResidue,
+        nextResidue,
+        missingByChain,
+      );
+      const target = hasMissingGap ? dashedPositions : solidPositions;
+      target.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+    }
+
+    if (solidPositions.length > 0) {
+      this.renderSolidBackboneTubes(solidPositions, {
+        color: backboneColor,
+        opacity: backboneOpacity,
+        radius: backboneRadius,
+      });
+    }
+
+    if (dashedPositions.length > 0) {
+      this.renderDashedBackboneTubes(dashedPositions, {
+        color: backboneColor,
+        opacity: backboneOpacity,
+        dashSize,
+        gapSize,
+        radius: backboneRadius,
+      });
+    }
+
+    return {
+      solidSegments: solidPositions.length / 6,
+      dashedSegments: dashedPositions.length / 6,
+    };
+  }
+
+  renderDashedBackboneTubes(dashedPositions, options) {
+    const {
+      color = 0x7c8cc4,
+      opacity = 0.8,
+      dashSize = 75,
+      gapSize = 35,
+      radius = 1,
+    } = options || {};
+
+    const material = new THREE.MeshPhongMaterial({
+      color,
+      transparent: true,
+      opacity,
+      side: THREE.DoubleSide,
+    });
+    const unitCylinder = new THREE.CylinderGeometry(radius, radius, 1, 10, 1);
+
+    let dashInstanceCount = 0;
+    for (let i = 0; i < dashedPositions.length; i += 6) {
+      const startX = dashedPositions[i];
+      const startY = dashedPositions[i + 1];
+      const startZ = dashedPositions[i + 2];
+      const endX = dashedPositions[i + 3];
+      const endY = dashedPositions[i + 4];
+      const endZ = dashedPositions[i + 5];
+
+      const segmentLength = Math.sqrt(
+        (endX - startX) * (endX - startX) +
+          (endY - startY) * (endY - startY) +
+          (endZ - startZ) * (endZ - startZ),
+      );
+      if (segmentLength < 1e-6) continue;
+
+      let traveled = 0;
+      while (traveled < segmentLength) {
+        const currentDashLength = Math.min(dashSize, segmentLength - traveled);
+        if (currentDashLength <= 0) break;
+        dashInstanceCount++;
+        traveled += currentDashLength + gapSize;
+      }
+    }
+
+    if (dashInstanceCount === 0) {
+      unitCylinder.dispose();
+      material.dispose();
+      return;
+    }
+
+    const dashedInstances = new THREE.InstancedMesh(
+      unitCylinder,
+      material,
+      dashInstanceCount,
+    );
+
+    const yAxis = new THREE.Vector3(0, 1, 0);
+    const start = new THREE.Vector3();
+    const end = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const dashStart = new THREE.Vector3();
+    const dashEnd = new THREE.Vector3();
+    const mid = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3(1, 1, 1);
+    const matrix = new THREE.Matrix4();
+
+    let instanceIndex = 0;
+    for (let i = 0; i < dashedPositions.length; i += 6) {
+      start.set(dashedPositions[i], dashedPositions[i + 1], dashedPositions[i + 2]);
+      end.set(
+        dashedPositions[i + 3],
+        dashedPositions[i + 4],
+        dashedPositions[i + 5],
+      );
+
+      direction.copy(end).sub(start);
+      const segmentLength = direction.length();
+      if (segmentLength < 1e-6) continue;
+      direction.normalize();
+
+      quaternion.setFromUnitVectors(yAxis, direction);
+
+      let traveled = 0;
+      while (traveled < segmentLength) {
+        const currentDashLength = Math.min(dashSize, segmentLength - traveled);
+        if (currentDashLength <= 0) break;
+
+        dashStart.copy(start).addScaledVector(direction, traveled);
+        dashEnd
+          .copy(start)
+          .addScaledVector(direction, traveled + currentDashLength);
+        mid.copy(dashStart).add(dashEnd).multiplyScalar(0.5);
+
+        scale.set(1, currentDashLength, 1);
+        matrix.compose(mid, quaternion, scale);
+        dashedInstances.setMatrixAt(instanceIndex, matrix);
+        instanceIndex++;
+
+        traveled += currentDashLength + gapSize;
+      }
+    }
+
+    dashedInstances.instanceMatrix.needsUpdate = true;
+    dashedInstances.computeBoundingSphere();
+    this.root.add(dashedInstances);
+  }
+
+  renderSolidBackboneTubes(solidPositions, options) {
+    const { color = 0x7c8cc4, opacity = 0.8, radius = 1 } = options || {};
+
+    const material = new THREE.MeshPhongMaterial({
+      color,
+      transparent: true,
+      opacity,
+      side: THREE.DoubleSide,
+    });
+    const unitCylinder = new THREE.CylinderGeometry(radius, radius, 1, 10, 1);
+
+    const segmentCount = Math.floor(solidPositions.length / 6);
+    if (segmentCount === 0) {
+      unitCylinder.dispose();
+      material.dispose();
+      return;
+    }
+
+    const solidInstances = new THREE.InstancedMesh(
+      unitCylinder,
+      material,
+      segmentCount,
+    );
+
+    const yAxis = new THREE.Vector3(0, 1, 0);
+    const start = new THREE.Vector3();
+    const end = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const mid = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3(1, 1, 1);
+    const matrix = new THREE.Matrix4();
+
+    let instanceIndex = 0;
+    for (let i = 0; i < solidPositions.length; i += 6) {
+      start.set(solidPositions[i], solidPositions[i + 1], solidPositions[i + 2]);
+      end.set(solidPositions[i + 3], solidPositions[i + 4], solidPositions[i + 5]);
+
+      direction.copy(end).sub(start);
+      const segmentLength = direction.length();
+      if (segmentLength < 1e-6) continue;
+      direction.normalize();
+
+      mid.copy(start).add(end).multiplyScalar(0.5);
+      quaternion.setFromUnitVectors(yAxis, direction);
+      scale.set(1, segmentLength, 1);
+      matrix.compose(mid, quaternion, scale);
+      solidInstances.setMatrixAt(instanceIndex, matrix);
+      instanceIndex++;
+    }
+
+    solidInstances.count = instanceIndex;
+    solidInstances.instanceMatrix.needsUpdate = true;
+    solidInstances.computeBoundingSphere();
+    this.root.add(solidInstances);
+  }
+
   // Parse residues from PDB text collecting CA and O coordinates per residue
   parseResiduesFromPDB(pdbText) {
     const lines = pdbText.split("\n");
@@ -233,6 +561,21 @@ export default class Protein {
     if (!ssData || !ssData.residues || !ssData.ssLabels) return 0;
     const residues = ssData.residues;
     const labels = ssData.ssLabels;
+    const missingByChain = this.buildMissingResiduesByChain(
+      ssData.missingResidues || [],
+    );
+    const contiguousBlocks = this.buildContiguousResidueBlocks(
+      residues,
+      missingByChain,
+    );
+    const blockStartByIndex = new Array(residues.length);
+    const blockEndByIndex = new Array(residues.length);
+    for (const block of contiguousBlocks) {
+      for (let i = block.start; i <= block.end; i++) {
+        blockStartByIndex[i] = block.start;
+        blockEndByIndex[i] = block.end;
+      }
+    }
 
     const worldScale = 75;
     // H = helix (magenta), E = sheet (yellow), C = coil (grey)
@@ -259,7 +602,15 @@ export default class Protein {
         startIdx = i;
         continue;
       }
-      if (lab !== curLabel) {
+      const prevResidue = residues[i - 1];
+      const currentResidue = residues[i];
+      const hasGap = this.hasMissingBetweenResidues(
+        prevResidue,
+        currentResidue,
+        missingByChain,
+      );
+
+      if (lab !== curLabel || hasGap) {
         segments.push({ label: curLabel, start: startIdx, end: i - 1 });
         curLabel = lab;
         startIdx = i;
@@ -277,9 +628,9 @@ export default class Protein {
       const segLength = seg.end - seg.start + 1;
       if (segLength < 2) continue;
 
-      // include 2-residue overlap on both sides to avoid seams
-      const sIdx = Math.max(0, seg.start - 2);
-      const eIdx = Math.min(residues.length - 1, seg.end + 2);
+      // Keep overlap for smooth transitions, but clamp within same contiguous block.
+      const sIdx = Math.max(blockStartByIndex[seg.start], seg.start - 2);
+      const eIdx = Math.min(blockEndByIndex[seg.end], seg.end + 2);
       const points = [];
       for (let k = sIdx; k <= eIdx; k++)
         points.push(

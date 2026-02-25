@@ -1,0 +1,21 @@
+Abbreviation ,Amino Acid,Charge,Polarity,Molecular Weight (Da)
+A ,Alanine,,NP,89.1
+R,Arginine,+,,174.2
+N,Asparagine,0,P,132.12
+D,Aspartic Acid,-,,133.11
+C,Cysteine,0,P,121.16
+E,Glutamic acid,-,,147.13
+Q,Glutamine,0,P,146.14
+G,Glycine,0,NP,75.07
+H,Histidine,+,,155.15
+I,Isoleucine,,NP,131.17
+L,Leucine,,NP,131.17
+K,Lysine,+,,146.19
+M,Methionine,,NP,149.21
+F,Phenylalanine,,NP,165.19
+P,Proline,,NP,115.13
+S,Serine,0,P,105.09
+T,Threonine,0,P,119.12
+W,Tryptophan,,NP,204.23
+Y,Tyrosine,0,P,181.19
+V,Valine,,NP,117.15
