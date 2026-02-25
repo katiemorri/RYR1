@@ -370,7 +370,7 @@ export default class Protein {
           true,
           position,
           callout.currentFrameIndex,
-          angle
+          angle,
         );
       }
     }
