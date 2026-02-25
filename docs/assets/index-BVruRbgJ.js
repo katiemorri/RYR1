@@ -33228,8 +33228,10 @@ class Protein {
       callout.position.copy(position);
       callout.setRandomFrame();
       const camera = this.experience.camera.instance;
-      const dx = camera.position.x - position.x;
-      const dz = camera.position.z - position.z;
+      const cameraWorldPos = new Vector3();
+      camera.getWorldPosition(cameraWorldPos);
+      const dx = cameraWorldPos.x - position.x;
+      const dz = cameraWorldPos.z - position.z;
       const angle = Math.atan2(dx, dz);
       callout.rotation.y = angle;
       callout.visible = true;
@@ -33786,4 +33788,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-DieEXZVp.js.map
+//# sourceMappingURL=index-BVruRbgJ.js.map

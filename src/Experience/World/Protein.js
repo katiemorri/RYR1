@@ -706,10 +706,14 @@ export default class Protein {
       callout.position.copy(position);
       callout.setRandomFrame(); // Choose a random frame when repositioning
 
-      // Billboard towards camera (Y-axis rotation only)
+      // Billboard towards camera/HMD (Y-axis rotation only)
+      // Use getWorldPosition to correctly handle VR camera in cameraGroup
       const camera = this.experience.camera.instance;
-      const dx = camera.position.x - position.x;
-      const dz = camera.position.z - position.z;
+      const cameraWorldPos = new THREE.Vector3();
+      camera.getWorldPosition(cameraWorldPos);
+      
+      const dx = cameraWorldPos.x - position.x;
+      const dz = cameraWorldPos.z - position.z;
       const angle = Math.atan2(dx, dz);
       callout.rotation.y = angle;
 
