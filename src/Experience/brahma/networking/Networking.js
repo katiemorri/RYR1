@@ -10,6 +10,10 @@ export default class Networking {
     this.canSendEmbodiment = false;
     this.interlocutors = new Interlocutors();
     this.callouts = {};
+    
+    // Throttling for callout updates
+    this.lastCalloutSend = 0;
+    this.calloutThrottle = 100; // milliseconds
 
     // First, fetch username and color from the server
     this.initializeUser()
@@ -55,9 +59,9 @@ export default class Networking {
     if (Array.isArray(data)) {
       this.receiveEmbodiments(data);
     }
-    // else if (Object.hasOwn(data, "type") && data.type === "callouts") {
-    //   this.receiveCallouts(data["callouts"]);
-    // }
+    else if (Object.hasOwn(data, "type") && data.type === "calloutUpdate") {
+      this.receiveCalloutUpdate(data);
+    }
     else if (Object.hasOwn(data, "type") && data.type === "timePacket") {
       //console.log("TimePacket not in use");
     } else {
@@ -272,6 +276,63 @@ export default class Networking {
       this.socket.send(JSON.stringify(data));
     } else {
       console.log("Cannot send embodiment data yet");
+    }
+  }
+
+  // Send callout update with throttling
+  sendCalloutUpdate(visible, position, frameIndex, rotation) {
+    const now = Date.now();
+    if (now - this.lastCalloutSend < this.calloutThrottle) {
+      return; // Skip if too soon
+    }
+    this.lastCalloutSend = now;
+
+    const data = {
+      type: "calloutUpdate",
+      name: this.user.parameters.userName,
+      visible: visible,
+      position: position.toArray(),
+      frameIndex: frameIndex,
+      rotation: rotation
+    };
+
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    }
+  }
+
+  // Receive callout update from other users
+  async receiveCalloutUpdate(data) {
+    // Skip our own updates
+    if (data.name === this.user.parameters.userName) {
+      return;
+    }
+
+    const world = this.experience.world;
+    if (!world) return;
+
+    // Initialize networkCallouts object if needed
+    if (!world.networkCallouts) {
+      world.networkCallouts = {};
+    }
+
+    // Get or create callout for this user
+    if (!world.networkCallouts[data.name]) {
+      // Dynamically import and create new Callout
+      const Callout = (await import("../../World/Callout.js")).default;
+      world.networkCallouts[data.name] = new Callout();
+    }
+
+    const callout = world.networkCallouts[data.name];
+
+    // Update callout properties
+    if (data.visible) {
+      callout.position.fromArray(data.position);
+      callout.setFrame(data.frameIndex);
+      callout.rotation.y = data.rotation;
+      callout.visible = true;
+    } else {
+      callout.visible = false;
     }
   }
   //put in the timedata from the server

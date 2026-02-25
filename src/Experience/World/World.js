@@ -23,7 +23,14 @@ export default class World {
     this.resources.on("ready", () => {
       this.stars = new Stars();
       this.environment = new Environment();
+
+      // Create callout (hidden until clicked on protein)
       this.callout = new Callout();
+      this.callout.visible = false;
+
+      // Storage for other users' callouts
+      this.networkCallouts = {};
+
       this.protein = new Protein(
         "8X48.pdb",
         "Protein Title",

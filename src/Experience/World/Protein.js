@@ -337,55 +337,43 @@ export default class Protein {
     this.meshes.push(mesh);
     this.experience.selectableObjects.push(mesh);
 
-    // Add click handler that spawns a cube at intersection point
+    // Add click handler that positions callout at intersection point
     mesh.onSelect = () => {
       // Get the current intersection point from the pointer
       const intersect = this.experience.pointer.currentIntersect;
       if (intersect && intersect.point) {
-        this.spawnTemporaryCube(intersect.point);
+        this.positionCalloutAt(intersect.point);
       }
     };
   }
 
-  // Spawn a temporary cube at the given world position
-  spawnTemporaryCube(position) {
-    // Create a small cube (0.1 world units)
-    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshPhongMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 1.0,
-    });
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.copy(position);
-    this.scene.add(cube);
+  // Position the callout at the given world position
+  positionCalloutAt(position) {
+    // Get callout from world (created in World.js)
+    const callout = this.experience.world?.callout;
+    if (callout) {
+      callout.position.copy(position);
+      callout.setRandomFrame(); // Choose a random frame when repositioning
 
-    // Animate fade out over 2 seconds
-    const startTime = performance.now();
-    const duration = 2000; // 2 seconds
+      // Billboard towards camera (Y-axis rotation only)
+      const camera = this.experience.camera.instance;
+      const dx = camera.position.x - position.x;
+      const dz = camera.position.z - position.z;
+      const angle = Math.atan2(dx, dz);
+      callout.rotation.y = angle;
 
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1.0);
+      callout.visible = true;
 
-      // Fade out opacity
-      material.opacity = 1.0 - progress;
-
-      // Optional: scale up slightly while fading
-      const scale = 1.0 + progress * 0.5;
-      cube.scale.set(scale, scale, scale);
-
-      if (progress < 1.0) {
-        requestAnimationFrame(animate);
-      } else {
-        // Remove cube when animation completes
-        this.scene.remove(cube);
-        geometry.dispose();
-        material.dispose();
+      // Send update to network if connected
+      if (this.experience.networking) {
+        this.experience.networking.sendCalloutUpdate(
+          true,
+          position,
+          callout.currentFrameIndex,
+          angle
+        );
       }
-    };
-
-    animate();
+    }
   }
 
   // Build an extruded rectangular ribbon mesh for a segment.

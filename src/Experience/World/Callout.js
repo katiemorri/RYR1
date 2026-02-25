@@ -6,11 +6,27 @@ export default class Callout extends THREE.Group {
     super();
     this.experience = new Experience();
     this.scene = this.experience.scene;
+    this.resources = this.experience.resources;
+
+    // Get sample frame textures from resources
+    this.sampleImages = [
+      this.resources.items.frame1,
+      this.resources.items.frame2,
+      this.resources.items.frame3,
+      this.resources.items.frame4,
+      this.resources.items.frame5,
+      this.resources.items.frame6,
+      this.resources.items.frame7,
+      this.resources.items.frame8,
+    ];
+
+    // Start with first frame
+    this.currentFrameIndex = 0;
 
     // Parameterized dimensions
-    this.stemHeight = 0.18;
-    this.displayWidth = 0.28; // Compact 3-column layout
-    this.displayHeight = 0.12; // Compact height
+    this.stemHeight = 0.036;
+    this.displayWidth = 0.28; // Match PNG aspect ratio (618x386 = 1.6:1)
+    this.displayHeight = 0.175; // 0.28 / 1.6 = 0.175
 
     // Enhanced glass stem with taper (thinner at top, slightly thicker at bottom)
     const stemGeometry = new THREE.CylinderGeometry(
@@ -32,16 +48,8 @@ export default class Callout extends THREE.Group {
     this.stem.position.y = this.stemHeight / 2;
     this.add(this.stem);
 
-    // Create canvas once and reuse it (performance optimization)
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = 800;
-    this.canvas.height = 180;
-    this.ctx = this.canvas.getContext("2d", {
-      alpha: true,
-      willReadFrequently: true,
-    });
-
-    const texture = new THREE.CanvasTexture(this.canvas);
+    // Use sample frame texture instead of canvas
+    const texture = this.sampleImages[this.currentFrameIndex];
     texture.magFilter = THREE.LinearFilter;
     texture.minFilter = THREE.LinearFilter;
 
@@ -67,5 +75,27 @@ export default class Callout extends THREE.Group {
     this.add(this.informationDisplay);
 
     this.scene.add(this);
+  }
+
+  // Method to cycle through frames
+  setFrame(index) {
+    if (index >= 0 && index < this.sampleImages.length) {
+      this.currentFrameIndex = index;
+      this.informationDisplay.material.map = this.sampleImages[index];
+      this.informationDisplay.material.needsUpdate = true;
+    }
+  }
+
+  // Method to advance to next frame
+  nextFrame() {
+    this.currentFrameIndex =
+      (this.currentFrameIndex + 1) % this.sampleImages.length;
+    this.setFrame(this.currentFrameIndex);
+  }
+
+  // Method to set a random frame
+  setRandomFrame() {
+    const randomIndex = Math.floor(Math.random() * this.sampleImages.length);
+    this.setFrame(randomIndex);
   }
 }

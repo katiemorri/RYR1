@@ -58,23 +58,21 @@ export default class Experience extends EventEmitter {
     });
 
     if (this.debug.active) {
-      // this.debugFolder = this.debug.ui.addFolder("experience");
-      // this.debug.ui
-      //   .add(
-      //     {
-      //       initNetworking: () => {
-      //         window.experience.networking = new Networking();
-      //         // hides Join Session after it's clicked
-      //         this.debug.ui.domElement.style.display = "none";
-      //       },
-      //     },
-      //     "initNetworking"
-      //   )
-      //   .name("Join Session");
-      // add a button that does     this.networking = new Networking();
+      this.debug.ui
+        .add(
+          {
+            initNetworking: () => {
+              window.experience.networking = new Networking();
+              // hides Join Session after it's clicked
+              this.debug.ui.domElement.style.display = "none";
+            },
+          },
+          "initNetworking",
+        )
+        .name("Join Session");
     }
-    // hide debug UI
-    this.debug.ui.domElement.style.display = "none";
+    // Debug UI visible on startup - hidden after clicking "Join Session"
+    // this.debug.ui.domElement.style.display = "none";
 
     this.sizes = new Sizes();
     this.time = new Time();
@@ -107,7 +105,7 @@ export default class Experience extends EventEmitter {
         this.networking.sendEmbodiment(
           this.camera.instance.matrixWorld,
           this.controller.controller1.matrixWorld,
-          this.controller.controller2.matrixWorld
+          this.controller.controller2.matrixWorld,
         );
       }
 
