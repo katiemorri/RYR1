@@ -4,11 +4,11 @@ export default [
     type: "texture",
     path: "textures/5.png",
   },
-  {
-    name: "frame1",
-    type: "texture",
-    path: "sample-callouts/frame1.png",
-  },
+  // {
+  //   name: "frame1",
+  //   type: "texture",
+  //   path: "sample-callouts/frame1.png",
+  // },
   {
     name: "frame2",
     type: "texture",
@@ -39,9 +39,9 @@ export default [
     type: "texture",
     path: "sample-callouts/frame7.png",
   },
-  {
-    name: "frame8",
-    type: "texture",
-    path: "sample-callouts/frame8.png",
-  },
+  // {
+  //   name: "frame8",
+  //   type: "texture",
+  //   path: "sample-callouts/frame8.png",
+  // },
 ];

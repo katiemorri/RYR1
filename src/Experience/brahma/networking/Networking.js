@@ -10,7 +10,7 @@ export default class Networking {
     this.canSendEmbodiment = false;
     this.interlocutors = new Interlocutors();
     this.callouts = {};
-    
+
     // Throttling for callout updates
     this.lastCalloutSend = 0;
     this.calloutThrottle = 100; // milliseconds
@@ -58,11 +58,9 @@ export default class Networking {
   handleServerMessage(data) {
     if (Array.isArray(data)) {
       this.receiveEmbodiments(data);
-    }
-    else if (Object.hasOwn(data, "type") && data.type === "calloutUpdate") {
+    } else if (Object.hasOwn(data, "type") && data.type === "calloutUpdate") {
       this.receiveCalloutUpdate(data);
-    }
-    else if (Object.hasOwn(data, "type") && data.type === "timePacket") {
+    } else if (Object.hasOwn(data, "type") && data.type === "timePacket") {
       //console.log("TimePacket not in use");
     } else {
       console.error("Unknown message type:", data);
@@ -73,7 +71,7 @@ export default class Networking {
   async initializeUser() {
     try {
       const response = await fetch(
-        "https://brahma.xrss.org:8080/uniqueUsernameAndColor"
+        "https://brahma.xrss.org:8080/uniqueUsernameAndColor",
       );
       if (!response.ok) {
         throw new Error("Failed to fetch username and color");
@@ -140,7 +138,7 @@ export default class Networking {
       return Promise.race([
         fetch(url, options),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Request timed out")), TIMEOUT)
+          setTimeout(() => reject(new Error("Request timed out")), TIMEOUT),
         ),
       ]);
     };
@@ -158,12 +156,12 @@ export default class Networking {
               name: this.user.parameters.userName,
               calloutID: calloutID,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
           throw new Error(
-            `Failed to contribute callout (status: ${response.status})`
+            `Failed to contribute callout (status: ${response.status})`,
           );
         }
 
@@ -293,7 +291,7 @@ export default class Networking {
       visible: visible,
       position: position.toArray(),
       frameIndex: frameIndex,
-      rotation: rotation
+      rotation: rotation,
     };
 
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -351,11 +349,11 @@ export default class Networking {
 
           if (!this.interlocutors.containsEmbodiment(interlocutor.name)) {
             console.log(
-              `Instantiating new embodiment for ${interlocutor.name}`
+              `Instantiating new embodiment for ${interlocutor.name}`,
             );
             this.interlocutors.instantiateEmbodiment(
               interlocutor.name,
-              new THREE.Color(parseInt(interlocutor?.color, 16))
+              new THREE.Color(parseInt(interlocutor?.color, 16)),
             );
           }
 
@@ -367,20 +365,20 @@ export default class Networking {
             ) {
               // console.log(`Updating positions for ${interlocutor.name}`);
               const HMDMatrix = new THREE.Matrix4().fromArray(
-                interlocutor.HMDPosition
+                interlocutor.HMDPosition,
               );
               const LControllerMatrix = new THREE.Matrix4().fromArray(
-                interlocutor.LController
+                interlocutor.LController,
               );
               const RControllerMatrix = new THREE.Matrix4().fromArray(
-                interlocutor.RController
+                interlocutor.RController,
               );
 
               this.interlocutors.updateEmbodiment(
                 interlocutor.name,
                 HMDMatrix,
                 LControllerMatrix,
-                RControllerMatrix
+                RControllerMatrix,
               );
             } else {
               console.warn(`Incomplete data for ${interlocutor.name}:`, {
@@ -393,7 +391,7 @@ export default class Networking {
         } catch (error) {
           console.error(
             `Error processing interlocutor ${interlocutor.name}:`,
-            error
+            error,
           );
         }
       });

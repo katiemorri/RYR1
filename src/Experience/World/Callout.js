@@ -10,14 +10,14 @@ export default class Callout extends THREE.Group {
 
     // Get sample frame textures from resources
     this.sampleImages = [
-      this.resources.items.frame1,
+      //   this.resources.items.frame1,
       this.resources.items.frame2,
       this.resources.items.frame3,
       this.resources.items.frame4,
       this.resources.items.frame5,
       this.resources.items.frame6,
       this.resources.items.frame7,
-      this.resources.items.frame8,
+      //   this.resources.items.frame8,
     ];
 
     // Start with first frame

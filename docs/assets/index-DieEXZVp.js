@@ -10692,12 +10692,11 @@ function WebGLMorphtargets(gl, capabilities, textures) {
     const morphTargetsCount = morphAttribute !== void 0 ? morphAttribute.length : 0;
     let entry = morphTextures.get(geometry);
     if (entry === void 0 || entry.count !== morphTargetsCount) {
-      let disposeTexture2 = function() {
+      let disposeTexture = function() {
         texture.dispose();
         morphTextures.delete(geometry);
-        geometry.removeEventListener("dispose", disposeTexture2);
+        geometry.removeEventListener("dispose", disposeTexture);
       };
-      var disposeTexture = disposeTexture2;
       if (entry !== void 0) entry.texture.dispose();
       const hasMorphPosition = geometry.morphAttributes.position !== void 0;
       const hasMorphNormals = geometry.morphAttributes.normal !== void 0;
@@ -10756,7 +10755,7 @@ function WebGLMorphtargets(gl, capabilities, textures) {
         size: new Vector2(width, height)
       };
       morphTextures.set(geometry, entry);
-      geometry.addEventListener("dispose", disposeTexture2);
+      geometry.addEventListener("dispose", disposeTexture);
     }
     if (object.isInstancedMesh === true && object.morphTexture !== null) {
       program.getUniforms().setValue(gl, "morphTexture", object.morphTexture, textures);
@@ -19350,13 +19349,6 @@ function testPoint(point, index, localThresholdSq, matrixWorld, raycaster, inter
       barycoord: null,
       object
     });
-  }
-}
-class CanvasTexture extends Texture {
-  constructor(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy) {
-    super(canvas, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy);
-    this.isCanvasTexture = true;
-    this.needsUpdate = true;
   }
 }
 class Curve {
@@ -28143,14 +28135,14 @@ class GLTFParser {
       return this.sourceCache[sourceIndex].then((texture) => texture.clone());
     }
     const sourceDef = json.images[sourceIndex];
-    const URL = self.URL || self.webkitURL;
+    const URL2 = self.URL || self.webkitURL;
     let sourceURI = sourceDef.uri || "";
     let isObjectURL = false;
     if (sourceDef.bufferView !== void 0) {
       sourceURI = parser.getDependency("bufferView", sourceDef.bufferView).then(function(bufferView) {
         isObjectURL = true;
         const blob = new Blob([bufferView], { type: sourceDef.mimeType });
-        sourceURI = URL.createObjectURL(blob);
+        sourceURI = URL2.createObjectURL(blob);
         return sourceURI;
       });
     } else if (sourceDef.uri === void 0) {
@@ -28170,7 +28162,7 @@ class GLTFParser {
       });
     }).then(function(texture) {
       if (isObjectURL === true) {
-        URL.revokeObjectURL(sourceURI);
+        URL2.revokeObjectURL(sourceURI);
       }
       assignExtrasToUserData(texture, sourceDef);
       texture.userData.mimeType = sourceDef.mimeType || getImageURIMimeType(sourceDef.uri);
@@ -31059,6 +31051,482 @@ class Stars {
   update() {
   }
 }
+const scriptRel = "modulepreload";
+const assetsURL = function(dep, importerUrl) {
+  return new URL(dep, importerUrl).href;
+};
+const seen = {};
+const __vitePreload = function preload(baseModule, deps, importerUrl) {
+  let promise = Promise.resolve();
+  if (deps && deps.length > 0) {
+    const links = document.getElementsByTagName("link");
+    const cspNonceMeta = document.querySelector(
+      "meta[property=csp-nonce]"
+    );
+    const cspNonce = (cspNonceMeta == null ? void 0 : cspNonceMeta.nonce) || (cspNonceMeta == null ? void 0 : cspNonceMeta.getAttribute("nonce"));
+    promise = Promise.allSettled(
+      deps.map((dep) => {
+        dep = assetsURL(dep, importerUrl);
+        if (dep in seen) return;
+        seen[dep] = true;
+        const isCss = dep.endsWith(".css");
+        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
+        const isBaseRelative = !!importerUrl;
+        if (isBaseRelative) {
+          for (let i = links.length - 1; i >= 0; i--) {
+            const link2 = links[i];
+            if (link2.href === dep && (!isCss || link2.rel === "stylesheet")) {
+              return;
+            }
+          }
+        } else if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
+          return;
+        }
+        const link = document.createElement("link");
+        link.rel = isCss ? "stylesheet" : scriptRel;
+        if (!isCss) {
+          link.as = "script";
+        }
+        link.crossOrigin = "";
+        link.href = dep;
+        if (cspNonce) {
+          link.setAttribute("nonce", cspNonce);
+        }
+        document.head.appendChild(link);
+        if (isCss) {
+          return new Promise((res, rej) => {
+            link.addEventListener("load", res);
+            link.addEventListener(
+              "error",
+              () => rej(new Error(`Unable to preload CSS for ${dep}`))
+            );
+          });
+        }
+      })
+    );
+  }
+  function handlePreloadError(err2) {
+    const e = new Event("vite:preloadError", {
+      cancelable: true
+    });
+    e.payload = err2;
+    window.dispatchEvent(e);
+    if (!e.defaultPrevented) {
+      throw err2;
+    }
+  }
+  return promise.then((res) => {
+    for (const item of res || []) {
+      if (item.status !== "rejected") continue;
+      handlePreloadError(item.reason);
+    }
+    return baseModule().catch(handlePreloadError);
+  });
+};
+class Interlocutors {
+  constructor() {
+    this.experience = new Experience();
+    this.networking = this.experience.networking;
+    this.bodies = {};
+    this.boxGeometry = new BoxGeometry(0.25, 0.3, 0.15);
+    this.handGeometry = new BoxGeometry(0.05, 0.1, 0.12);
+  }
+  purgeEmbodiment(name) {
+    if (this.bodies.hasOwnProperty(name)) {
+      this.experience.scene.remove(this.bodies[name].group);
+      delete this.bodies[name];
+    }
+  }
+  containsEmbodiment(name) {
+    return this.bodies.hasOwnProperty(name);
+  }
+  instantiateEmbodiment(name, color) {
+    console.log("instantiating embodiment", name);
+    if (name == this.experience.user.parameters.userName) {
+      return;
+    }
+    console.log(color);
+    this.bodies[name] = {};
+    this.bodies[name].group = new Group();
+    this.bodies[name].material = new MeshBasicMaterial({
+      color
+    });
+    this.bodies[name].head = new Mesh(
+      this.boxGeometry,
+      this.bodies[name].material
+    );
+    this.bodies[name].head.name = "HMD";
+    this.bodies[name].head.position.set(0, 0.1, 0);
+    this.bodies[name].group.add(this.bodies[name].head);
+    this.experience.scene.add(this.bodies[name].group);
+    this.bodies[name].LController = new Mesh(
+      this.handGeometry,
+      this.bodies[name].material
+    );
+    this.bodies[name].LController.name = "LController";
+    this.bodies[name].LController.position.set(0.1, 0, 0);
+    this.bodies[name].group.add(this.bodies[name].LController);
+    this.bodies[name].RController = new Mesh(
+      this.handGeometry,
+      this.bodies[name].material
+    );
+    this.bodies[name].RController.name = "RController";
+    this.bodies[name].RController.position.set(-0.1, 0, 0);
+    this.bodies[name].group.add(this.bodies[name].RController);
+  }
+  updateEmbodiment(name, HMDMatrix = new Matrix4(), LControllerMatrix = new Matrix4(), RControllerMatrix = new Matrix4()) {
+    if (name == this.experience.user.parameters.userName) {
+      return;
+    }
+    let body = this.bodies[name];
+    let HMD = body.group.getObjectByName("HMD");
+    HMD.position.setFromMatrixPosition(HMDMatrix);
+    HMD.quaternion.setFromRotationMatrix(HMDMatrix);
+    let LController = body.group.getObjectByName("LController");
+    LController.position.setFromMatrixPosition(LControllerMatrix);
+    LController.quaternion.setFromRotationMatrix(LControllerMatrix);
+    let RController = body.group.getObjectByName("RController");
+    RController.position.setFromMatrixPosition(RControllerMatrix);
+    RController.quaternion.setFromRotationMatrix(RControllerMatrix);
+  }
+}
+class Networking {
+  constructor() {
+    this.experience = new Experience();
+    this.user = this.experience.user;
+    this.canSendEmbodiment = false;
+    this.interlocutors = new Interlocutors();
+    this.callouts = {};
+    this.lastCalloutSend = 0;
+    this.calloutThrottle = 100;
+    this.initializeUser().then(({ username, color }) => {
+      this.user.parameters.userName = username;
+      this.user.parameters.color = color;
+      console.log(`Received username: ${username}, color: ${color}`);
+      this.socket = new WebSocket("wss://brahma.xrss.org:8080");
+      this.socket.onopen = () => {
+        console.log("WebSocket connection established");
+        this.sendInitialData();
+        setTimeout(() => {
+          this.canSendEmbodiment = true;
+        }, 2e3);
+      };
+      this.socket.onmessage = (event) => {
+        if (event.data.length > 1) {
+          let data = JSON.parse(event.data);
+          this.handleServerMessage(data);
+        }
+      };
+      this.socket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        console.log("ReadyState:", this.socket.readyState);
+      };
+      this.socket.onclose = (event) => {
+        console.log("WebSocket connection closed:", event.reason);
+      };
+    }).catch((error) => {
+      console.error("Error initializing user:", error);
+    });
+  }
+  handleServerMessage(data) {
+    if (Array.isArray(data)) {
+      this.receiveEmbodiments(data);
+    } else if (Object.hasOwn(data, "type") && data.type === "calloutUpdate") {
+      this.receiveCalloutUpdate(data);
+    } else if (Object.hasOwn(data, "type") && data.type === "timePacket") ;
+    else {
+      console.error("Unknown message type:", data);
+    }
+  }
+  // Method to fetch username and color from the server
+  async initializeUser() {
+    try {
+      const response = await fetch(
+        "https://brahma.xrss.org:8080/uniqueUsernameAndColor"
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch username and color");
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      throw error;
+    }
+  }
+  // async contributeCallout(calloutID) {
+  //   if (!this.user.parameters.userName) {
+  //     console.error("No username found");
+  //     return;
+  //   }
+  //   if (!calloutID) {
+  //     console.error("No callout ID found");
+  //     return;
+  //   }
+  //   // callout endpoint looks kinda like this on backend
+  //   console.log("Contribute callout:", calloutID);
+  //   try {
+  //     const response = await fetch("https://brahma.xrss.org:8080/callout", {
+  //       method: "PUT",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         name: this.user.parameters.userName,
+  //         calloutID: calloutID,
+  //       }),
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error("Failed to contribute callout");
+  //     }
+  //     const data = await response.json();
+  //     console.log(data);
+  //     return data;
+  //   } catch (error) {
+  //     console.error("Error contributing callout:", error);
+  //     throw error;
+  //   }
+  // }
+  //attempting race
+  async contributeCallout(calloutID) {
+    if (!this.user.parameters.userName) {
+      console.error("No username found");
+      return;
+    }
+    if (!calloutID) {
+      console.error("No callout ID found");
+      return;
+    }
+    console.log("Contribute callout:", calloutID);
+    const MAX_RETRIES = 3;
+    const TIMEOUT = 2e3;
+    const fetchWithTimeout = async (url, options) => {
+      return Promise.race([
+        fetch(url, options),
+        new Promise(
+          (_, reject) => setTimeout(() => reject(new Error("Request timed out")), TIMEOUT)
+        )
+      ]);
+    };
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetchWithTimeout(
+          "https://brahma.xrss.org:8080/callout",
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: this.user.parameters.userName,
+              calloutID
+            })
+          }
+        );
+        if (!response.ok) {
+          throw new Error(
+            `Failed to contribute callout (status: ${response.status})`
+          );
+        }
+        const data = await response.json();
+        console.log(data);
+        return data;
+      } catch (error) {
+        console.error(`Attempt ${attempt} failed:`, error.message);
+        if (attempt === MAX_RETRIES) {
+          console.error("All attempts to contribute callout failed.");
+          throw error;
+        }
+        console.log("Retrying...");
+      }
+    }
+  }
+  async rescindCallout(calloutID) {
+    if (!this.user.parameters.userName) {
+      console.error("No username found");
+      return;
+    }
+    if (!calloutID) {
+      console.error("No callout ID found");
+      return;
+    }
+    console.log("Rescind callout:", calloutID);
+    try {
+      const response = await fetch("https://brahma.xrss.org:8080/callout", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: this.user.parameters.userName,
+          calloutID
+        })
+      });
+      if (!response.ok) {
+        throw new Error("Failed to rescind callout");
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error rescinding callout:", error);
+      throw error;
+    }
+  }
+  async receiveCallouts(data) {
+    if (JSON.stringify(data) !== JSON.stringify(this.callouts)) {
+      this.callouts = data;
+      console.log("Callouts updated:", this.callouts);
+    }
+  }
+  // async receiveCallouts() {
+  //   //abandoning, will work with websockets instead
+  //   try {
+  //     const response = await fetch("https://brahma.xrss.org:8080/callout");
+  //     if (!response.ok) {
+  //       throw new Error("Failed to fetch callouts");
+  //     }
+  //     const data = await response.json();
+  //     console.log("Received callouts:", data);
+  //     return data;
+  //   } catch (error) {
+  //     console.error("Error fetching callouts:", error);
+  //     throw error;
+  //   }
+  // }
+  //these will update the time on the server
+  sendTimePacket(time, rate, state) {
+    const data = {
+      type: "timeCommand",
+      simulationtime: time,
+      simulationrate: rate,
+      simulationplaying: state
+    };
+    this.socket.send(JSON.stringify(data));
+    console.log("Time command sent:", data);
+  }
+  sendInitialData() {
+    const initData = {
+      name: this.user.parameters.userName,
+      color: this.user.parameters.color
+    };
+    this.socket.send(JSON.stringify(initData));
+    console.log("Initial user data sent:", initData);
+  }
+  sendEmbodiment(HMD, LController, RController) {
+    const data = {
+      name: this.user.parameters.userName,
+      color: this.user.parameters.color,
+      HMDPosition: HMD.toArray(),
+      LController: LController.toArray(),
+      RController: RController.toArray()
+    };
+    if (this.canSendEmbodiment) {
+      this.socket.send(JSON.stringify(data));
+    } else {
+      console.log("Cannot send embodiment data yet");
+    }
+  }
+  // Send callout update with throttling
+  sendCalloutUpdate(visible, position, frameIndex, rotation) {
+    const now = Date.now();
+    if (now - this.lastCalloutSend < this.calloutThrottle) {
+      return;
+    }
+    this.lastCalloutSend = now;
+    const data = {
+      type: "calloutUpdate",
+      name: this.user.parameters.userName,
+      visible,
+      position: position.toArray(),
+      frameIndex,
+      rotation
+    };
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    }
+  }
+  // Receive callout update from other users
+  async receiveCalloutUpdate(data) {
+    if (data.name === this.user.parameters.userName) {
+      return;
+    }
+    const world = this.experience.world;
+    if (!world) return;
+    if (!world.networkCallouts) {
+      world.networkCallouts = {};
+    }
+    if (!world.networkCallouts[data.name]) {
+      const Callout2 = (await __vitePreload(async () => {
+        const { default: __vite_default__ } = await Promise.resolve().then(() => Callout$1);
+        return { default: __vite_default__ };
+      }, true ? void 0 : void 0, import.meta.url)).default;
+      world.networkCallouts[data.name] = new Callout2();
+    }
+    const callout = world.networkCallouts[data.name];
+    if (data.visible) {
+      callout.position.fromArray(data.position);
+      callout.setFrame(data.frameIndex);
+      callout.rotation.y = data.rotation;
+      callout.visible = true;
+    } else {
+      callout.visible = false;
+    }
+  }
+  //put in the timedata from the server
+  receiveEmbodiments(data) {
+    try {
+      const interlocutorsData = data;
+      interlocutorsData.forEach((interlocutor) => {
+        try {
+          if (interlocutor.name === this.user.parameters.userName) {
+            return;
+          }
+          if (!this.interlocutors.containsEmbodiment(interlocutor.name)) {
+            console.log(
+              `Instantiating new embodiment for ${interlocutor.name}`
+            );
+            this.interlocutors.instantiateEmbodiment(
+              interlocutor.name,
+              new Color(parseInt(interlocutor == null ? void 0 : interlocutor.color, 16))
+            );
+          }
+          if (this.interlocutors.containsEmbodiment(interlocutor.name)) {
+            if (interlocutor.HMDPosition && interlocutor.LController && interlocutor.RController) {
+              const HMDMatrix = new Matrix4().fromArray(
+                interlocutor.HMDPosition
+              );
+              const LControllerMatrix = new Matrix4().fromArray(
+                interlocutor.LController
+              );
+              const RControllerMatrix = new Matrix4().fromArray(
+                interlocutor.RController
+              );
+              this.interlocutors.updateEmbodiment(
+                interlocutor.name,
+                HMDMatrix,
+                LControllerMatrix,
+                RControllerMatrix
+              );
+            } else {
+              console.warn(`Incomplete data for ${interlocutor.name}:`, {
+                HMDPosition: interlocutor.HMDPosition,
+                LController: interlocutor.LController,
+                RController: interlocutor.RController
+              });
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Error processing interlocutor ${interlocutor.name}:`,
+            error
+          );
+        }
+      });
+    } catch (error) {
+      console.error("Error parsing interlocutor data:", error);
+    }
+  }
+}
 class User {
   constructor() {
     var _a2;
@@ -32233,6 +32701,7 @@ class Protein {
     ]).then(([pdbText, ssJson]) => {
       const pdb = this.loader.parse(pdbText);
       const residues = this.parseResiduesFromPDB(pdbText);
+      const missingResidues = this.parseMissingResiduesFromPDB(pdbText);
       let ssLabels;
       if (ssJson && ssJson.assignments) {
         ssLabels = residues.map((r) => {
@@ -32251,7 +32720,7 @@ class Protein {
       } else {
         ssLabels = this.computeDSSP(residues);
       }
-      this.onProteinLoaded(pdb, { residues, ssLabels });
+      this.onProteinLoaded(pdb, { residues, ssLabels, missingResidues });
     }).catch((error) => {
       console.error("Error loading protein:", error);
     });
@@ -32266,9 +32735,272 @@ class Protein {
       secondaryStructure,
       offset
     );
+    const traceStats = this.renderBackboneTrace(secondaryStructure, offset);
     console.log(
       `Protein loaded: rendered ${segmentCount} secondary-structure segments`
     );
+    console.log(
+      `Backbone trace: ${traceStats.solidSegments} solid segments, ${traceStats.dashedSegments} dashed missing-residue segments`
+    );
+  }
+  // Parse missing residues from PDB REMARK 465 records.
+  // Returns array of { chain, resSeq, insertionCode }.
+  parseMissingResiduesFromPDB(pdbText) {
+    const lines = pdbText.split("\n");
+    const missing = [];
+    const seen2 = /* @__PURE__ */ new Set();
+    for (const line of lines) {
+      if (!line.startsWith("REMARK 465")) continue;
+      let chain = line.slice(19, 20).trim();
+      let resSeq = parseInt(line.slice(21, 26).trim(), 10);
+      let insertionCode = line.slice(26, 27).trim() || "";
+      if (Number.isNaN(resSeq)) {
+        const match = line.match(
+          /^REMARK 465\s+(?:\d+\s+)?[A-Z0-9]{3}\s+([A-Za-z0-9_])\s*(-?\d+)([A-Za-z]?)\s*$/
+        );
+        if (!match) continue;
+        chain = match[1].trim();
+        resSeq = parseInt(match[2], 10);
+        insertionCode = match[3] || "";
+      }
+      if (Number.isNaN(resSeq)) continue;
+      if (!chain) chain = "_";
+      const key = `${chain}:${resSeq}:${insertionCode}`;
+      if (seen2.has(key)) continue;
+      seen2.add(key);
+      missing.push({ chain, resSeq, insertionCode });
+    }
+    return missing;
+  }
+  buildMissingResiduesByChain(missingResidues) {
+    const missingByChain = /* @__PURE__ */ new Map();
+    for (const m of missingResidues || []) {
+      if (!missingByChain.has(m.chain)) missingByChain.set(m.chain, []);
+      missingByChain.get(m.chain).push(m);
+    }
+    for (const arr of missingByChain.values()) {
+      arr.sort(
+        (a, b) => a.resSeq - b.resSeq || a.insertionCode.localeCompare(b.insertionCode)
+      );
+    }
+    return missingByChain;
+  }
+  hasMissingBetweenResidues(currentResidue, nextResidue, missingByChain) {
+    if (currentResidue.chain !== nextResidue.chain) return false;
+    const chainMissing = missingByChain.get(currentResidue.chain);
+    if (!chainMissing || chainMissing.length === 0) return false;
+    if (nextResidue.resSeq - currentResidue.resSeq > 1) return true;
+    for (const m of chainMissing) {
+      if (m.resSeq > currentResidue.resSeq && m.resSeq < nextResidue.resSeq) {
+        return true;
+      }
+    }
+    return false;
+  }
+  buildContiguousResidueBlocks(residues, missingByChain) {
+    const blocks = [];
+    if (!residues || residues.length === 0) return blocks;
+    let start = 0;
+    for (let i = 1; i < residues.length; i++) {
+      const prev = residues[i - 1];
+      const cur = residues[i];
+      const chainBreak = prev.chain !== cur.chain;
+      const missingBreak = this.hasMissingBetweenResidues(
+        prev,
+        cur,
+        missingByChain
+      );
+      if (chainBreak || missingBreak) {
+        blocks.push({ start, end: i - 1 });
+        start = i;
+      }
+    }
+    blocks.push({ start, end: residues.length - 1 });
+    return blocks;
+  }
+  renderBackboneTrace(ssData, offset) {
+    if (!ssData || !ssData.residues) {
+      return { solidSegments: 0, dashedSegments: 0 };
+    }
+    const residues = ssData.residues;
+    const missingResidues = ssData.missingResidues || [];
+    const worldScale = 75;
+    const missingByChain = this.buildMissingResiduesByChain(missingResidues);
+    const backboneColor = 8162500;
+    const backboneOpacity = 0.8;
+    const dashSize = 75;
+    const gapSize = 35;
+    const backboneRadius = 0.1 * worldScale;
+    const solidPositions = [];
+    const dashedPositions = [];
+    for (let i = 0; i < residues.length - 1; i++) {
+      const currentResidue = residues[i];
+      const nextResidue = residues[i + 1];
+      if (currentResidue.chain !== nextResidue.chain) continue;
+      const p1 = currentResidue.ca.clone().add(offset).multiplyScalar(worldScale);
+      const p2 = nextResidue.ca.clone().add(offset).multiplyScalar(worldScale);
+      const hasMissingGap = this.hasMissingBetweenResidues(
+        currentResidue,
+        nextResidue,
+        missingByChain
+      );
+      const target = hasMissingGap ? dashedPositions : solidPositions;
+      target.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+    }
+    if (solidPositions.length > 0) {
+      this.renderSolidBackboneTubes(solidPositions, {
+        color: backboneColor,
+        opacity: backboneOpacity,
+        radius: backboneRadius
+      });
+    }
+    if (dashedPositions.length > 0) {
+      this.renderDashedBackboneTubes(dashedPositions, {
+        color: backboneColor,
+        opacity: backboneOpacity,
+        dashSize,
+        gapSize,
+        radius: backboneRadius
+      });
+    }
+    return {
+      solidSegments: solidPositions.length / 6,
+      dashedSegments: dashedPositions.length / 6
+    };
+  }
+  renderDashedBackboneTubes(dashedPositions, options) {
+    const {
+      color = 8162500,
+      opacity = 0.8,
+      dashSize = 75,
+      gapSize = 35,
+      radius = 1
+    } = options || {};
+    const material = new MeshPhongMaterial({
+      color,
+      transparent: true,
+      opacity,
+      side: DoubleSide
+    });
+    const unitCylinder = new CylinderGeometry(radius, radius, 1, 10, 1);
+    let dashInstanceCount = 0;
+    for (let i = 0; i < dashedPositions.length; i += 6) {
+      const startX = dashedPositions[i];
+      const startY = dashedPositions[i + 1];
+      const startZ = dashedPositions[i + 2];
+      const endX = dashedPositions[i + 3];
+      const endY = dashedPositions[i + 4];
+      const endZ = dashedPositions[i + 5];
+      const segmentLength = Math.sqrt(
+        (endX - startX) * (endX - startX) + (endY - startY) * (endY - startY) + (endZ - startZ) * (endZ - startZ)
+      );
+      if (segmentLength < 1e-6) continue;
+      let traveled = 0;
+      while (traveled < segmentLength) {
+        const currentDashLength = Math.min(dashSize, segmentLength - traveled);
+        if (currentDashLength <= 0) break;
+        dashInstanceCount++;
+        traveled += currentDashLength + gapSize;
+      }
+    }
+    if (dashInstanceCount === 0) {
+      unitCylinder.dispose();
+      material.dispose();
+      return;
+    }
+    const dashedInstances = new InstancedMesh(
+      unitCylinder,
+      material,
+      dashInstanceCount
+    );
+    const yAxis = new Vector3(0, 1, 0);
+    const start = new Vector3();
+    const end = new Vector3();
+    const direction = new Vector3();
+    const dashStart = new Vector3();
+    const dashEnd = new Vector3();
+    const mid = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3(1, 1, 1);
+    const matrix = new Matrix4();
+    let instanceIndex = 0;
+    for (let i = 0; i < dashedPositions.length; i += 6) {
+      start.set(dashedPositions[i], dashedPositions[i + 1], dashedPositions[i + 2]);
+      end.set(
+        dashedPositions[i + 3],
+        dashedPositions[i + 4],
+        dashedPositions[i + 5]
+      );
+      direction.copy(end).sub(start);
+      const segmentLength = direction.length();
+      if (segmentLength < 1e-6) continue;
+      direction.normalize();
+      quaternion.setFromUnitVectors(yAxis, direction);
+      let traveled = 0;
+      while (traveled < segmentLength) {
+        const currentDashLength = Math.min(dashSize, segmentLength - traveled);
+        if (currentDashLength <= 0) break;
+        dashStart.copy(start).addScaledVector(direction, traveled);
+        dashEnd.copy(start).addScaledVector(direction, traveled + currentDashLength);
+        mid.copy(dashStart).add(dashEnd).multiplyScalar(0.5);
+        scale.set(1, currentDashLength, 1);
+        matrix.compose(mid, quaternion, scale);
+        dashedInstances.setMatrixAt(instanceIndex, matrix);
+        instanceIndex++;
+        traveled += currentDashLength + gapSize;
+      }
+    }
+    dashedInstances.instanceMatrix.needsUpdate = true;
+    dashedInstances.computeBoundingSphere();
+    this.root.add(dashedInstances);
+  }
+  renderSolidBackboneTubes(solidPositions, options) {
+    const { color = 8162500, opacity = 0.8, radius = 1 } = options || {};
+    const material = new MeshPhongMaterial({
+      color,
+      transparent: true,
+      opacity,
+      side: DoubleSide
+    });
+    const unitCylinder = new CylinderGeometry(radius, radius, 1, 10, 1);
+    const segmentCount = Math.floor(solidPositions.length / 6);
+    if (segmentCount === 0) {
+      unitCylinder.dispose();
+      material.dispose();
+      return;
+    }
+    const solidInstances = new InstancedMesh(
+      unitCylinder,
+      material,
+      segmentCount
+    );
+    const yAxis = new Vector3(0, 1, 0);
+    const start = new Vector3();
+    const end = new Vector3();
+    const direction = new Vector3();
+    const mid = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3(1, 1, 1);
+    const matrix = new Matrix4();
+    let instanceIndex = 0;
+    for (let i = 0; i < solidPositions.length; i += 6) {
+      start.set(solidPositions[i], solidPositions[i + 1], solidPositions[i + 2]);
+      end.set(solidPositions[i + 3], solidPositions[i + 4], solidPositions[i + 5]);
+      direction.copy(end).sub(start);
+      const segmentLength = direction.length();
+      if (segmentLength < 1e-6) continue;
+      direction.normalize();
+      mid.copy(start).add(end).multiplyScalar(0.5);
+      quaternion.setFromUnitVectors(yAxis, direction);
+      scale.set(1, segmentLength, 1);
+      matrix.compose(mid, quaternion, scale);
+      solidInstances.setMatrixAt(instanceIndex, matrix);
+      instanceIndex++;
+    }
+    solidInstances.count = instanceIndex;
+    solidInstances.instanceMatrix.needsUpdate = true;
+    solidInstances.computeBoundingSphere();
+    this.root.add(solidInstances);
   }
   // Parse residues from PDB text collecting CA and O coordinates per residue
   parseResiduesFromPDB(pdbText) {
@@ -32371,6 +33103,21 @@ class Protein {
     if (!ssData || !ssData.residues || !ssData.ssLabels) return 0;
     const residues = ssData.residues;
     const labels = ssData.ssLabels;
+    const missingByChain = this.buildMissingResiduesByChain(
+      ssData.missingResidues || []
+    );
+    const contiguousBlocks = this.buildContiguousResidueBlocks(
+      residues,
+      missingByChain
+    );
+    const blockStartByIndex = new Array(residues.length);
+    const blockEndByIndex = new Array(residues.length);
+    for (const block of contiguousBlocks) {
+      for (let i = block.start; i <= block.end; i++) {
+        blockStartByIndex[i] = block.start;
+        blockEndByIndex[i] = block.end;
+      }
+    }
     const worldScale = 75;
     const colorMap = { H: 6374028, E: 15453254, C: 8162500 };
     const makeMaterial = (label) => {
@@ -32392,7 +33139,14 @@ class Protein {
         startIdx = i;
         continue;
       }
-      if (lab !== curLabel) {
+      const prevResidue = residues[i - 1];
+      const currentResidue = residues[i];
+      const hasGap = this.hasMissingBetweenResidues(
+        prevResidue,
+        currentResidue,
+        missingByChain
+      );
+      if (lab !== curLabel || hasGap) {
         segments.push({ label: curLabel, start: startIdx, end: i - 1 });
         curLabel = lab;
         startIdx = i;
@@ -32408,8 +33162,8 @@ class Protein {
     for (const seg of segments) {
       const segLength = seg.end - seg.start + 1;
       if (segLength < 2) continue;
-      const sIdx = Math.max(0, seg.start - 2);
-      const eIdx = Math.min(residues.length - 1, seg.end + 2);
+      const sIdx = Math.max(blockStartByIndex[seg.start], seg.start - 2);
+      const eIdx = Math.min(blockEndByIndex[seg.end], seg.end + 2);
       const points = [];
       for (let k = sIdx; k <= eIdx; k++)
         points.push(
@@ -32462,38 +33216,32 @@ class Protein {
     mesh.onSelect = () => {
       const intersect2 = this.experience.pointer.currentIntersect;
       if (intersect2 && intersect2.point) {
-        this.spawnTemporaryCube(intersect2.point);
+        this.positionCalloutAt(intersect2.point);
       }
     };
   }
-  // Spawn a temporary cube at the given world position
-  spawnTemporaryCube(position) {
-    const geometry = new BoxGeometry(0.1, 0.1, 0.1);
-    const material = new MeshPhongMaterial({
-      color: 16711680,
-      transparent: true,
-      opacity: 1
-    });
-    const cube = new Mesh(geometry, material);
-    cube.position.copy(position);
-    this.scene.add(cube);
-    const startTime = performance.now();
-    const duration = 2e3;
-    const animate = () => {
-      const elapsed = performance.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      material.opacity = 1 - progress;
-      const scale = 1 + progress * 0.5;
-      cube.scale.set(scale, scale, scale);
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        this.scene.remove(cube);
-        geometry.dispose();
-        material.dispose();
+  // Position the callout at the given world position
+  positionCalloutAt(position) {
+    var _a2;
+    const callout = (_a2 = this.experience.world) == null ? void 0 : _a2.callout;
+    if (callout) {
+      callout.position.copy(position);
+      callout.setRandomFrame();
+      const camera = this.experience.camera.instance;
+      const dx = camera.position.x - position.x;
+      const dz = camera.position.z - position.z;
+      const angle = Math.atan2(dx, dz);
+      callout.rotation.y = angle;
+      callout.visible = true;
+      if (this.experience.networking) {
+        this.experience.networking.sendCalloutUpdate(
+          true,
+          position,
+          callout.currentFrameIndex,
+          angle
+        );
       }
-    };
-    animate();
+    }
   }
   // Build an extruded rectangular ribbon mesh for a segment.
   buildExtrudedRibbon(residuesSegment, segLabel, offset, worldScale, tubularSegments) {
@@ -32644,9 +33392,21 @@ class Callout extends Group {
     super();
     this.experience = new Experience();
     this.scene = this.experience.scene;
-    this.stemHeight = 0.18;
+    this.resources = this.experience.resources;
+    this.sampleImages = [
+      //   this.resources.items.frame1,
+      this.resources.items.frame2,
+      this.resources.items.frame3,
+      this.resources.items.frame4,
+      this.resources.items.frame5,
+      this.resources.items.frame6,
+      this.resources.items.frame7
+      //   this.resources.items.frame8,
+    ];
+    this.currentFrameIndex = 0;
+    this.stemHeight = 0.036;
     this.displayWidth = 0.28;
-    this.displayHeight = 0.12;
+    this.displayHeight = 0.175;
     const stemGeometry = new CylinderGeometry(
       15e-4,
       // Top radius - thinner
@@ -32665,14 +33425,7 @@ class Callout extends Group {
     this.stem = new Mesh(stemGeometry, stemMaterial);
     this.stem.position.y = this.stemHeight / 2;
     this.add(this.stem);
-    this.canvas = document.createElement("canvas");
-    this.canvas.width = 800;
-    this.canvas.height = 180;
-    this.ctx = this.canvas.getContext("2d", {
-      alpha: true,
-      willReadFrequently: true
-    });
-    const texture = new CanvasTexture(this.canvas);
+    const texture = this.sampleImages[this.currentFrameIndex];
     texture.magFilter = LinearFilter;
     texture.minFilter = LinearFilter;
     const material = new MeshBasicMaterial({
@@ -32693,7 +33446,29 @@ class Callout extends Group {
     this.add(this.informationDisplay);
     this.scene.add(this);
   }
+  // Method to cycle through frames
+  setFrame(index) {
+    if (index >= 0 && index < this.sampleImages.length) {
+      this.currentFrameIndex = index;
+      this.informationDisplay.material.map = this.sampleImages[index];
+      this.informationDisplay.material.needsUpdate = true;
+    }
+  }
+  // Method to advance to next frame
+  nextFrame() {
+    this.currentFrameIndex = (this.currentFrameIndex + 1) % this.sampleImages.length;
+    this.setFrame(this.currentFrameIndex);
+  }
+  // Method to set a random frame
+  setRandomFrame() {
+    const randomIndex = Math.floor(Math.random() * this.sampleImages.length);
+    this.setFrame(randomIndex);
+  }
 }
+const Callout$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  default: Callout
+}, Symbol.toStringTag, { value: "Module" }));
 class World {
   constructor() {
     this.experience = new Experience();
@@ -32709,6 +33484,8 @@ class World {
       this.stars = new Stars();
       this.environment = new Environment();
       this.callout = new Callout();
+      this.callout.visible = false;
+      this.networkCallouts = {};
       this.protein = new Protein(
         "8X48.pdb",
         "Protein Title",
@@ -32725,7 +33502,47 @@ const sources = [
     name: "starTexture",
     type: "texture",
     path: "textures/5.png"
+  },
+  // {
+  //   name: "frame1",
+  //   type: "texture",
+  //   path: "sample-callouts/frame1.png",
+  // },
+  {
+    name: "frame2",
+    type: "texture",
+    path: "sample-callouts/frame2.png"
+  },
+  {
+    name: "frame3",
+    type: "texture",
+    path: "sample-callouts/frame3.png"
+  },
+  {
+    name: "frame4",
+    type: "texture",
+    path: "sample-callouts/frame4.png"
+  },
+  {
+    name: "frame5",
+    type: "texture",
+    path: "sample-callouts/frame5.png"
+  },
+  {
+    name: "frame6",
+    type: "texture",
+    path: "sample-callouts/frame6.png"
+  },
+  {
+    name: "frame7",
+    type: "texture",
+    path: "sample-callouts/frame7.png"
   }
+  // {
+  //   name: "frame8",
+  //   type: "texture",
+  //   path: "sample-callouts/frame8.png",
+  // },
 ];
 class VRButton {
   static createButton(renderer, sessionInit = {}) {
@@ -32879,8 +33696,17 @@ class Experience extends EventEmitter {
     window.addEventListener("click", () => {
       this.pointer.select();
     });
-    if (this.debug.active) ;
-    this.debug.ui.domElement.style.display = "none";
+    if (this.debug.active) {
+      this.debug.ui.add(
+        {
+          initNetworking: () => {
+            window.experience.networking = new Networking();
+            this.debug.ui.domElement.style.display = "none";
+          }
+        },
+        "initNetworking"
+      ).name("Join Session");
+    }
     this.sizes = new Sizes();
     this.time = new Time();
     this.scene = new Scene();
@@ -32960,4 +33786,4 @@ class Experience extends EventEmitter {
   }
 }
 new Experience(document.querySelector("canvas.webgl"));
-//# sourceMappingURL=index-DA1E6kj6.js.map
+//# sourceMappingURL=index-DieEXZVp.js.map
