@@ -1,6 +1,6 @@
 # Poke a Protein: Spatial Protein Explorer
 ![3D render of a protein](./static/thumbnail.png)
-A prototype XR view of the massive RYR1 protein, viewable in VR via WebXR and Three.js.
+A prototype XR view of the massive RYR1 protein, viewable in VR via WebXR and Three.js. We did the majority of this development during the [Logitech Dev Studio 2026 Competition](https://devstudiologitech2026.devpost.com/) for prototyping ways of using the Logitech MX Ink Stylus. 
 
 ## What it does
 Our prototype places a massive protein in VR and exposes this to a shared virtual environment where users of the Logitech MX Ink pen can interact with protein and see metadata related to sequences for collaborative analysis and sensemaking. We currently use a prototype interface with mockups containing real amino acid data. For example, when you're looking at a binding pocket, being able to tap each residue lining that pocket and see its properties (residue #, chain #, charge, polarity, size) helps you reason about what kind of ligand might fit. 
