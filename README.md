@@ -1,4 +1,4 @@
-# RYR1
+# Poke a Protein: Spatial Protein Explorer
 ![3D render of a protein](./static/thumbnail.png)
 A 3D view of the RYR1 protein, viewable in VR via WebXR and Three.js.
 ## Local Development
