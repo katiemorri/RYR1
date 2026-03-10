@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap");
+
 html,
 body {
   overflow: hidden;
@@ -7,20 +9,21 @@ body {
 * {
   margin: 0;
   padding: 0;
-  font-family: "Sour Gummy", sans-serif;
+  font-family: "Comfortaa", sans-serif;
 }
 h1,
 em,
 a {
-  font-family: "Sour Gummy", sans-serif;
+  font-family: "Comfortaa", sans-serif;
 }
 
 p,
 li {
-  font-family: "Montserrat", sans-serif;
+  font-family: "Comfortaa", sans-serif;
 }
 h1 {
-  font-size: 1.3em;
+  font-size: 2em;
+  font-weight: 300;
 }
 h2 {
   font-weight: 300;
@@ -28,8 +31,8 @@ h2 {
 }
 p,
 li {
-  font-size: 0.8em;
-  font-weight: 300;
+  font-size: 1em;
+  font-weight: 700;
 }
 ul,
 ol {
@@ -45,7 +48,7 @@ main {
   padding: 1em;
   z-index: 10;
   color: aliceblue;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.8);
   max-width: 400px;
 }
 main > h1 {
